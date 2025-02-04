@@ -33,7 +33,11 @@ class ApiGen {
       tags: _tags,
       yaml: _yaml,
     );
-    GeneratedModels models = generator.generate();
-    // print('api gen result\n${models}');
+    GeneratedModels result = generator.generate();
+    print(
+      '\nAPI GEN RESULT \nMETHODS:----'
+          // '${result.methods}\n'
+          '\nMODELS${result.models}\n',
+    );
   }
 }

@@ -1,6 +1,5 @@
 import 'dart:io';
 import 'package:equatable/equatable.dart';
-import 'package:gen_yaml/codegenerator.dart';
 import 'package:gen_yaml/codegenerator/api_gen.dart';
 import 'package:yaml/yaml.dart';
 import 'package:args/args.dart';
@@ -13,7 +12,7 @@ void main(List<String> args) async {
   final results = parser.parse(args);
 
   if (results['input'] == null) {
-    print('Please provide input file path using --input or -i');
+    //print('Please provide input file path using --input or -i');
     exit(1);
   }
 
@@ -22,7 +21,7 @@ void main(List<String> args) async {
 
   final file = File(inputPath);
   if (!file.existsSync()) {
-    print('Input file not found: $inputPath');
+    //print('Input file not found: $inputPath');
     exit(1);
   }
 

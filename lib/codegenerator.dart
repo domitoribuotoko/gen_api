@@ -25,14 +25,16 @@ class CodeGenerator {
       final className = entry.key;
       // Пропускаем модели, которые уже были сгенерированы как наследники
       if (generatedModels.contains(className)) continue;
-      
+
       final schema = entry.value;
       final code = generateDataModel(className, schema);
       final modelFolder = baseModels.contains(className)
-          ? 'base' 
+          ? 'base'
           : (modelUsage[className]?.first ?? 'base');
-            
-      await writeFile('$outputPath/models/$modelFolder/${ReCase(className).snakeCase}.dart', code);
+
+      await writeFile(
+          '$outputPath/models/$modelFolder/${ReCase(className).snakeCase}.dart',
+          code);
       generatedModels.add(className);
     }
   }
@@ -56,14 +58,16 @@ class CodeGenerator {
       final schema = entry.value;
 
       final code = generateDomainEntity(className, schema);
-      
+
       // Определяем папку для сущности так же, как для моделей
-      final entityFolder = baseModels.contains(className) 
-          ? 'base' 
+      final entityFolder = baseModels.contains(className)
+          ? 'base'
           : (modelUsage[className]?.first ?? 'base');
-      
+
       // Сохраняем сущность в соответствующую папку
-      await writeFile('$outputPath/entities/$entityFolder/${ReCase(className).snakeCase}_entity.dart', code);
+      await writeFile(
+          '$outputPath/entities/$entityFolder/${ReCase(className).snakeCase}_entity.dart',
+          code);
     }
   }
 
@@ -73,10 +77,10 @@ class CodeGenerator {
     return schema.containsKey('properties') ||
         schema.containsKey('allOf') ||
         schema.containsKey('oneOf') ||
-        (schema['type'] == 'array' && 
-         schema['items'] != null && 
-         schema['items'] is Map && 
-         schema['items'].containsKey('properties'));
+        (schema['type'] == 'array' &&
+            schema['items'] != null &&
+            schema['items'] is Map &&
+            schema['items'].containsKey('properties'));
   }
 
   String generateDataModel(String className, YamlMap schema) {
@@ -134,7 +138,7 @@ class CodeGenerator {
           );
         }
       } catch (e) {
-        print('Warning: Error generating model $className: $e');
+        //print('Warning: Error generating model $className: $e');
       }
     }
 
@@ -155,6 +159,7 @@ class CodeGenerator {
 
     return buffer.toString();
   }
+
   String generateDomainEntity(String className, YamlMap schema) {
     final buffer = StringBuffer();
     final rc = ReCase(className);
@@ -201,7 +206,7 @@ class CodeGenerator {
         final camelCaseFieldName = ReCase(fieldName).camelCase;
 
         if (fieldSchema is! Map) {
-          print('Warning: Field schema for $fieldName is not a Map, skipping...');
+          //print('Warning: Field schema for $fieldName is not a Map, skipping...');
           continue;
         }
 
@@ -214,7 +219,7 @@ class CodeGenerator {
         buffer.writeln('  final $fieldType $camelCaseFieldName;');
         buffer.writeln();
       } catch (e) {
-        print('Warning: Error generating property ${property.key}: $e');
+        //print('Warning: Error generating property ${property.key}: $e');
       }
     }
   }
@@ -234,7 +239,8 @@ class CodeGenerator {
     }
   }
 
-  void _generateEntityConstructor(StringBuffer buffer, String className, YamlMap schema) {
+  void _generateEntityConstructor(
+      StringBuffer buffer, String className, YamlMap schema) {
     buffer.writeln('  ${className}Entity({');
 
     void addConstructorParams(Map properties, List required) {
@@ -317,7 +323,7 @@ class CodeGenerator {
         final ref = schema['\$ref'] as String;
         final modelName = ref.split('/').last;
         nestedModels.add(modelName);
-        
+
         // Проверяем, является ли referenced схема массивом
         final refSchema = _getSchemaByRef(schema['\$ref']);
         if (refSchema != null && refSchema['type'] == 'array') {
@@ -368,7 +374,8 @@ class CodeGenerator {
     }
   }
 
-  void _generateOneOfProperties(StringBuffer buffer, dynamic oneOf, String className) {
+  void _generateOneOfProperties(
+      StringBuffer buffer, dynamic oneOf, String className) {
     if (oneOf is! List) return;
 
     // Создаем абстрактный базовый класс
@@ -383,7 +390,8 @@ class CodeGenerator {
     buffer.writeln('  const $className({required this.type});');
 
     // Фабричный метод fromJson
-    buffer.writeln('  factory $className.fromJson(Map<String, dynamic> json) {');
+    buffer
+        .writeln('  factory $className.fromJson(Map<String, dynamic> json) {');
     buffer.writeln('    switch(json["type"]) {');
 
     // Генерируем case для каждого типа
@@ -395,7 +403,8 @@ class CodeGenerator {
     }
 
     buffer.writeln('      default:');
-    buffer.writeln('        throw Exception("Unknown type: \${json["type"]}");');
+    buffer
+        .writeln('        throw Exception("Unknown type: \${json["type"]}");');
     buffer.writeln('    }');
     buffer.writeln('  }');
 
@@ -411,8 +420,8 @@ class CodeGenerator {
 
       if (refSchema != null) {
         // Определяем папку для модели на основе существующей логики
-        final modelFolder = baseModels.contains(refModel) 
-            ? 'base' 
+        final modelFolder = baseModels.contains(refModel)
+            ? 'base'
             : (modelUsage[refModel]?.first ?? 'base');
 
         _generateOneOfChild(refModel, className, refSchema, modelFolder);
@@ -420,17 +429,19 @@ class CodeGenerator {
     }
   }
 
-  void _generateOneOfChild(String className, String parentClass, Map schema, String folder) {
+  void _generateOneOfChild(
+      String className, String parentClass, Map schema, String folder) {
     final buffer = StringBuffer();
     final importedModels = <String>{};
 
     // Собираем все вложенные модели
     _findNestedModels(schema as YamlMap).forEach((model) {
       if (model != className) {
-        final modelFolder = baseModels.contains(model) 
-            ? 'base' 
+        final modelFolder = baseModels.contains(model)
+            ? 'base'
             : (modelUsage[model]?.first ?? 'base');
-        importedModels.add("import '../$modelFolder/${ReCase(model).snakeCase}.dart';");
+        importedModels
+            .add("import '../$modelFolder/${ReCase(model).snakeCase}.dart';");
       }
     });
 
@@ -455,8 +466,12 @@ class CodeGenerator {
 
     // Fields
     if (schema['properties'] != null) {
-      _generateProperties(buffer, schema['properties'], 
-          schema['required'] != null ? _ensureListType(schema['required']) : []);
+      _generateProperties(
+          buffer,
+          schema['properties'],
+          schema['required'] != null
+              ? _ensureListType(schema['required'])
+              : []);
     }
 
     // Constructor
@@ -467,7 +482,7 @@ class CodeGenerator {
       for (final property in schema['properties'].entries) {
         final fieldName = property.key;
         final camelCaseFieldName = ReCase(fieldName).camelCase;
-        final isRequired = schema['required'] != null && 
+        final isRequired = schema['required'] != null &&
             _ensureListType(schema['required']).contains(fieldName);
         if (isRequired) {
           buffer.writeln('    required this.$camelCaseFieldName,');
@@ -479,43 +494,49 @@ class CodeGenerator {
     buffer.writeln('  });');
 
     // fromJson
-    buffer.writeln('  factory $className.fromJson(Map<String, dynamic> json) =>');
+    buffer
+        .writeln('  factory $className.fromJson(Map<String, dynamic> json) =>');
     buffer.writeln('      _\$${className}FromJson(json);');
 
     // toJson
     buffer.writeln('  @override');
-    buffer.writeln('  Map<String, dynamic> toJson() => _\$${className}ToJson(this);');
+    buffer.writeln(
+        '  Map<String, dynamic> toJson() => _\$${className}ToJson(this);');
 
     buffer.writeln('}');
 
     // Write to file в правильную папку с правильным путем
-    writeFile('$outputPath/data/models/$folder/${ReCase(className).snakeCase}.dart', buffer.toString());
+    writeFile(
+        '$outputPath/data/models/$folder/${ReCase(className).snakeCase}.dart',
+        buffer.toString());
   }
 
-  void _generateOneOfBaseClass(String baseClassName, List<dynamic> oneOfSchemas) {
+  void _generateOneOfBaseClass(
+      String baseClassName, List<dynamic> oneOfSchemas) {
     final buffer = StringBuffer();
-    
+
     // Imports
     buffer.writeln("import 'package:json_annotation/json_annotation.dart';");
-    
+
     // Собираем импорты для всех наследников
     for (final schema in oneOfSchemas) {
       if (schema is! Map || !schema.containsKey('\$ref')) continue;
       final refModel = schema['\$ref'].split('/').last;
-      final modelFolder = baseModels.contains(refModel) 
-          ? 'base' 
+      final modelFolder = baseModels.contains(refModel)
+          ? 'base'
           : (modelUsage[refModel]?.first ?? 'base');
       if (modelFolder == 'base') {
         buffer.writeln("import '${ReCase(refModel).snakeCase}.dart';");
       } else {
-        buffer.writeln("import '../$modelFolder/${ReCase(refModel).snakeCase}.dart';");
+        buffer.writeln(
+            "import '../$modelFolder/${ReCase(refModel).snakeCase}.dart';");
       }
     }
 
     buffer.writeln();
     buffer.writeln("part '${ReCase(baseClassName).snakeCase}.g.dart';");
     buffer.writeln();
-    
+
     // Генерируем базовый абстрактный класс
     buffer.writeln('@JsonSerializable()');
     buffer.writeln('abstract class $baseClassName {');
@@ -523,7 +544,8 @@ class CodeGenerator {
     buffer.writeln();
     buffer.writeln('  $baseClassName({required this.type});');
     buffer.writeln();
-    buffer.writeln('  factory $baseClassName.fromJson(Map<String, dynamic> json) {');
+    buffer.writeln(
+        '  factory $baseClassName.fromJson(Map<String, dynamic> json) {');
     buffer.writeln('    switch(json["type"]) {');
 
     // Генерируем case для каждого типа
@@ -535,7 +557,8 @@ class CodeGenerator {
     }
 
     buffer.writeln('      default:');
-    buffer.writeln('        throw Exception("Unknown type: \${json["type"]}");');
+    buffer
+        .writeln('        throw Exception("Unknown type: \${json["type"]}");');
     buffer.writeln('    }');
     buffer.writeln('  }');
 
@@ -543,7 +566,9 @@ class CodeGenerator {
     buffer.writeln('}');
 
     // Записываем базовый класс в правильную папку с правильным путем
-    writeFile('$outputPath/data/models/$baseFolder/${ReCase(baseClassName).snakeCase}.dart', buffer.toString());
+    writeFile(
+        '$outputPath/data/models/$baseFolder/${ReCase(baseClassName).snakeCase}.dart',
+        buffer.toString());
 
     // Генерируем классы-наследники
     for (final schema in oneOfSchemas) {
@@ -554,8 +579,8 @@ class CodeGenerator {
 
       if (refSchema != null) {
         // Определяем папку для модели на основе существующей логики
-        final modelFolder = baseModels.contains(refModel) 
-            ? 'base' 
+        final modelFolder = baseModels.contains(refModel)
+            ? 'base'
             : (modelUsage[refModel]?.first ?? 'base');
 
         _generateOneOfChild(refModel, baseClassName, refSchema, modelFolder);
@@ -578,7 +603,8 @@ class CodeGenerator {
 
   void _generateProperties(
       StringBuffer buffer, Map properties, List<String> required,
-      {bool nullable = true}) { // Изменено значение по умолчанию на true
+      {bool nullable = true}) {
+    // Изменено значение по умолчанию на true
     for (final property in properties.entries) {
       try {
         final fieldName = property.key;
@@ -586,8 +612,8 @@ class CodeGenerator {
         final camelCaseFieldName = ReCase(fieldName).camelCase;
 
         if (fieldSchema is! Map) {
-          print(
-              'Warning: Field schema for $fieldName is not a Map, skipping...');
+          // print(
+          //     'Warning: Field schema for $fieldName is not a Map, skipping...');
           continue;
         }
 
@@ -603,7 +629,7 @@ class CodeGenerator {
         buffer.writeln('  final $fieldType $camelCaseFieldName;');
         buffer.writeln();
       } catch (e) {
-        print('Warning: Error generating property ${property.key}: $e');
+        //print('Warning: Error generating property ${property.key}: $e');
       }
     }
   }
@@ -613,7 +639,7 @@ class CodeGenerator {
     if (schema.containsKey('\$ref')) {
       final refModel = schema['\$ref'].split('/').last;
       final refSchema = _getSchemaByRef(schema['\$ref']);
-      
+
       // Проверяем, является ли referenced схема массивом
       if (refSchema != null && refSchema['type'] == 'array') {
         final itemsSchema = refSchema['items'];
@@ -635,10 +661,10 @@ class CodeGenerator {
         }
         return 'List<$refModel>${isNullable ? '?' : ''}';
       }
-      
+
       return '$refModel${isNullable ? '?' : ''}';
     }
-    
+
     // Если это напрямую определенный массив
     if (schema['type'] == 'array') {
       final itemsSchema = schema['items'];
@@ -646,7 +672,8 @@ class CodeGenerator {
         // Если items содержит properties напрямую
         if (itemsSchema['properties'] != null) {
           // Здесь нужно использовать имя текущей модели
-          final modelName = schema['title'] ?? 'Item'; // Используем title или дефолтное имя
+          final modelName =
+              schema['title'] ?? 'Item'; // Используем title или дефолтное имя
           return 'List<$modelName>${isNullable ? '?' : ''}';
         }
         // Если items содержит ссылку
@@ -666,7 +693,8 @@ class CodeGenerator {
     return Utils.typeFromSchema(schema, nullable: isNullable);
   }
 
-  void _generateConstructor(StringBuffer buffer, String className, YamlMap schema) {
+  void _generateConstructor(
+      StringBuffer buffer, String className, YamlMap schema) {
     buffer.writeln('  $className({');
 
     void addConstructorParams(Map properties, List required) {
@@ -748,12 +776,14 @@ class CodeGenerator {
         final operation = method.value;
         final path = entry.key;
         final httpMethod = method.key.toUpperCase();
-        
+
         // Анализируем request body
         if (operation['requestBody'] != null) {
-          final jsonSchema = operation['requestBody']['content']['application/json']?['schema'];
-          final multipartSchema = operation['requestBody']['content']['multipart/form-data']?['schema'];
-          
+          final jsonSchema = operation['requestBody']['content']
+              ['application/json']?['schema'];
+          final multipartSchema = operation['requestBody']['content']
+              ['multipart/form-data']?['schema'];
+
           if (jsonSchema != null) {
             _addImportedModels(jsonSchema, importedModels);
           }
@@ -763,17 +793,21 @@ class CodeGenerator {
             if (multipartSchema['properties']?['data']?['oneOf'] != null) {
               final methodName = _generateOperationId(path, httpMethod);
               final baseClassName = '${ReCase(methodName).pascalCase}DataModel';
-              final modelFolder = baseModels.contains(baseClassName) 
-                  ? 'base' 
+              final modelFolder = baseModels.contains(baseClassName)
+                  ? 'base'
                   : (modelUsage[baseClassName]?.first ?? 'base');
-              buffer.writeln("import 'models/$modelFolder/${ReCase(baseClassName).snakeCase}.dart';");
+              buffer.writeln(
+                  "import 'models/$modelFolder/${ReCase(baseClassName).snakeCase}.dart';");
             }
           }
         }
 
         // Анализируем response
-        if (operation['responses']?['200']?['content']?['application/json']?['schema'] != null) {
-          final schema = operation['responses']['200']['content']['application/json']['schema'];
+        if (operation['responses']?['200']?['content']?['application/json']
+                ?['schema'] !=
+            null) {
+          final schema = operation['responses']['200']['content']
+              ['application/json']['schema'];
           _addImportedModels(schema, importedModels);
         }
       }
@@ -781,10 +815,11 @@ class CodeGenerator {
 
     // Генерируем импорты для всех используемых моделей
     for (final model in importedModels) {
-      final modelFolder = baseModels.contains(model) 
-          ? 'base' 
+      final modelFolder = baseModels.contains(model)
+          ? 'base'
           : (modelUsage[model]?.first ?? 'base');
-      buffer.writeln("import 'models/$modelFolder/${ReCase(model).snakeCase}.dart';");
+      buffer.writeln(
+          "import 'models/$modelFolder/${ReCase(model).snakeCase}.dart';");
     }
 
     buffer.writeln();
@@ -794,7 +829,8 @@ class CodeGenerator {
     // Client class
     buffer.writeln('@RestApi()');
     buffer.writeln('abstract class ApiClient {');
-    buffer.writeln('  factory ApiClient(Dio dio, {String baseUrl}) = _ApiClient;');
+    buffer.writeln(
+        '  factory ApiClient(Dio dio, {String baseUrl}) = _ApiClient;');
     buffer.writeln();
 
     // Generate methods for each path
@@ -811,7 +847,8 @@ class CodeGenerator {
 
         // Method documentation
         if (operation['description'] != null) {
-          buffer.writeln('  /// ${Utils.cleanDescription(operation['description'])}');
+          buffer.writeln(
+              '  /// ${Utils.cleanDescription(operation['description'])}');
         }
 
         // Method declaration
@@ -819,7 +856,8 @@ class CodeGenerator {
         buffer.write('  Future<$returnType> $operationId(');
 
         // Используем _generateMethodParameters с путем и методом
-        final parameters = _generateMethodParameters(operation, path: path, httpMethod: httpMethod);
+        final parameters = _generateMethodParameters(operation,
+            path: path, httpMethod: httpMethod);
         if (parameters.isNotEmpty) {
           buffer.writeln();
           buffer.write(parameters);
@@ -900,7 +938,7 @@ class CodeGenerator {
         final httpMethod = methodEntry.key.toUpperCase();
         final operation = methodEntry.value;
         final operationId = _generateOperationId(path, httpMethod);
-        
+
         // Используем operationId как имя папки без преобразований
         final methodFolder = operationId;
 
@@ -909,18 +947,22 @@ class CodeGenerator {
 
         // Анализируем request body
         if (operation['requestBody'] != null) {
-          final schema = operation['requestBody']['content']['application/json']?['schema'];
-          final multipartSchema = operation['requestBody']['content']['multipart/form-data']?['schema'];
-          
+          final schema = operation['requestBody']['content']['application/json']
+              ?['schema'];
+          final multipartSchema = operation['requestBody']['content']
+              ['multipart/form-data']?['schema'];
+
           if (schema != null) {
             _addModelUsageRecursive(schema, methodFolder, relatedModels);
           }
           if (multipartSchema != null) {
-            _addModelUsageRecursive(multipartSchema, methodFolder, relatedModels);
-            
+            _addModelUsageRecursive(
+                multipartSchema, methodFolder, relatedModels);
+
             // Если есть oneOf, добавляем все модели из него в ту же папку
             if (multipartSchema['properties']?['data']?['oneOf'] != null) {
-              for (final oneOfSchema in multipartSchema['properties']['data']['oneOf']) {
+              for (final oneOfSchema in multipartSchema['properties']['data']
+                  ['oneOf']) {
                 if (oneOfSchema['\$ref'] != null) {
                   final refModel = oneOfSchema['\$ref'].split('/').last;
                   relatedModels.add(refModel);
@@ -931,8 +973,11 @@ class CodeGenerator {
         }
 
         // Анализируем response
-        if (operation['responses']?['200']?['content']?['application/json']?['schema'] != null) {
-          final schema = operation['responses']['200']['content']['application/json']['schema'];
+        if (operation['responses']?['200']?['content']?['application/json']
+                ?['schema'] !=
+            null) {
+          final schema = operation['responses']['200']['content']
+              ['application/json']['schema'];
           _addModelUsageRecursive(schema, methodFolder, relatedModels);
         }
 
@@ -946,7 +991,8 @@ class CodeGenerator {
     }
   }
 
-  void _addModelUsageRecursive(dynamic schema, String methodFolder, Set<String> relatedModels) {
+  void _addModelUsageRecursive(
+      dynamic schema, String methodFolder, Set<String> relatedModels) {
     if (schema == null) return;
 
     if (schema['\$ref'] != null) {
@@ -959,7 +1005,8 @@ class CodeGenerator {
       final modelSchema = _getSchemaByRef(schema['\$ref']);
       if (modelSchema != null) {
         if (modelSchema['type'] == 'array' && modelSchema['items'] != null) {
-          _addModelUsageRecursive(modelSchema['items'], methodFolder, relatedModels);
+          _addModelUsageRecursive(
+              modelSchema['items'], methodFolder, relatedModels);
         }
         if (modelSchema['properties'] != null) {
           for (final prop in modelSchema['properties'].values) {
@@ -967,7 +1014,8 @@ class CodeGenerator {
           }
         }
         if (modelSchema['items'] != null) {
-          _addModelUsageRecursive(modelSchema['items'], methodFolder, relatedModels);
+          _addModelUsageRecursive(
+              modelSchema['items'], methodFolder, relatedModels);
         }
         if (modelSchema['allOf'] != null) {
           for (final subSchema in modelSchema['allOf']) {
@@ -1036,44 +1084,48 @@ class CodeGenerator {
         }
       }
     } catch (e) {
-      print('Warning: Error getting schema by ref $ref: $e');
+      //print('Warning: Error getting schema by ref $ref: $e');
     }
     return null;
   }
 
-  String _generateMethodParameters(Map operation, {String path = '', String httpMethod = ''}) {
+  String _generateMethodParameters(Map operation,
+      {String path = '', String httpMethod = ''}) {
     final buffer = StringBuffer();
-    
+
     if (operation['requestBody'] != null) {
       final content = operation['requestBody']['content'];
-      
+
       // Обработка multipart/form-data
       if (content['multipart/form-data'] != null) {
         final schema = content['multipart/form-data']['schema'];
-        
+
         // Обработка полей формы
         if (schema['properties'] != null) {
           for (final prop in schema['properties'].entries) {
             final fieldName = prop.key;
             final fieldSchema = prop.value;
-            
+
             // Обработка oneOf
             if (fieldSchema['oneOf'] != null) {
               // Генерируем имя базового класса на основе пути и метода
               final methodName = _generateOperationId(path, httpMethod);
-              final baseClassName = '${ReCase(methodName).pascalCase}${ReCase(fieldName).pascalCase}Model';
-              
+              final baseClassName =
+                  '${ReCase(methodName).pascalCase}${ReCase(fieldName).pascalCase}Model';
+
               // Генерируем базовый класс и его наследников
               _generateOneOfBaseClass(baseClassName, fieldSchema['oneOf']);
-              
+
               // Используем сгенерированный базовый класс
-              buffer.write('@Body() $baseClassName ${ReCase(fieldName).camelCase}, ');
+              buffer.write(
+                  '@Body() $baseClassName ${ReCase(fieldName).camelCase}, ');
             }
             // Обработка массивов файлов
-            else if (fieldSchema['type'] == 'array' && 
-                    fieldName.endsWith('[]')) {
+            else if (fieldSchema['type'] == 'array' &&
+                fieldName.endsWith('[]')) {
               final baseName = fieldName.substring(0, fieldName.length - 2);
-              buffer.write('@Part() List<MultipartFile>? ${ReCase(baseName).camelCase}, ');
+              buffer.write(
+                  '@Part() List<MultipartFile>? ${ReCase(baseName).camelCase}, ');
             }
           }
         }
