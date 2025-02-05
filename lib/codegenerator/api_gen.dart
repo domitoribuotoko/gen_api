@@ -1,4 +1,6 @@
 import 'package:equatable/equatable.dart';
+import 'package:gen_yaml/codegenerator/printer.dart';
+import 'package:gen_yaml/codegenerator/printer2.dart';
 import 'package:gen_yaml/codegenerator/utils/enums.dart';
 import 'package:gen_yaml/codegenerator/utils/support_classes.dart';
 import 'package:gen_yaml/codegenerator/utils/utils.dart';
@@ -34,10 +36,7 @@ class ApiGen {
       yaml: _yaml,
     );
     GeneratedModels result = generator.generate();
-    print(
-      '\nAPI GEN RESULT \nMETHODS:----'
-          // '${result.methods}\n'
-          '\nMODELS${result.models}\n',
-    );
+    // print('GEN COMPLITE $result');
+    Printer2(methods: result.methods, models: result.models);
   }
 }

@@ -11,7 +11,7 @@ class GeneratedModels extends Equatable {
   });
 
   @override
-  List<Object?> get props => [methods, models];
+  List<Object?> get props => [models];
 }
 
 class ApiField extends Equatable {
@@ -34,25 +34,52 @@ class ApiField extends Equatable {
 class ApiModel extends Equatable {
   final String name;
   final List<ApiField> fields;
-  final List<ApiField> superFields;
   final ApiModel? superModel;
+  final String? superVirtualModel;
+  List<String> usages;
 
-  const ApiModel({
+  ApiModel({
     required this.name,
     required this.fields,
-    required this.superFields,
     this.superModel,
+    this.usages = const [],
+    this.superVirtualModel,
   });
 
+  bool get isVirtual => this is VirtualModel;
+
   @override
-  List<Object?> get props => [name, fields];
+  List<Object?> get props =>
+      [name, 'super ${superModel?.name ?? superVirtualModel}', usages, fields];
+
+// ApiModel copyWith({
+//   String? name,
+//   List<ApiField>? fields,
+//   List<ApiField>? superFields,
+//   ApiModel? superModel,
+//   int? usages,
+// }) {
+//   return ApiModel(
+//     name: name ?? this.name,
+//     fields: fields ?? this.fields,
+//     superFields: superFields ?? this.superFields,
+//     superModel: superModel ?? this.superModel,
+//     usages: usages ?? this.usages,
+//   );
+// }
 }
 
 class EmptyModel extends ApiModel {
-  const EmptyModel({
+  EmptyModel({
     super.name = '',
     super.fields = const [],
-    super.superFields = const [],
+  });
+}
+
+class VirtualModel extends ApiModel {
+  VirtualModel({
+    required super.name,
+    super.fields = const [],
   });
 }
 
@@ -91,4 +118,14 @@ class ApiMethod extends Equatable {
         request,
         response,
       ];
+}
+
+class ModelDefinition {
+  final StringBuffer definition;
+  final String import;
+
+  const ModelDefinition({
+    required this.definition,
+    required this.import,
+  });
 }

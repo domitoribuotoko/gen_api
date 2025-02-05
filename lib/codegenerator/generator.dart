@@ -43,6 +43,7 @@ class _ModelsGenerator {
     YamlList? tags = content[c.ts];
     List<String> tagList =
         tags != null ? tags.map((tag) => tag.toString()).toList() : [];
+    // print('METHOD HAS TAG $tagList');
     String methodName = u.apiMethodNameOfPath(apiPath);
     YamlMap? requestBody = content[c.reqB];
     YamlMap? response = content[c.res];
@@ -90,10 +91,14 @@ class _ModelsGenerator {
     if (body == null) {
       throw Exception('generate response null body\n$response');
     }
-    return _generateModelFromBody(body, apiPath);
+    return _generateModelFromBody(body, apiPath, isResponse: true);
   }
 
-  ApiModel _generateModelFromBody(YamlMap? body, String path) {
+  ApiModel _generateModelFromBody(
+    YamlMap? body,
+    String path, {
+    bool isResponse = false,
+  }) {
     if (body == null) {
       return EmptyModel();
     }
@@ -105,15 +110,13 @@ class _ModelsGenerator {
     if (content != null) {
       YamlMap schema = content[c.sch];
       SchemasType type = u.getFieldType(schema, _schemas);
+      String modelName = u.classNameOfPath(path, isResponse: isResponse);
       switch (type) {
         case SchemasType.model:
           //print('request schema $schema');
-          String modelName = u.classNameOfPath(path);
           return _getModelFromDeclaration(schema, propModelName: modelName);
         case SchemasType.array:
           //todo array generating
-          // print('GENERATE CLASS FROM ARRAY');
-          String modelName = u.classNameOfPath(path);
           return _getModelFromDeclaration(schema, propModelName: modelName);
         case SchemasType.field:
           throw Exception('METHOD CLASS IS FIELD');
@@ -142,7 +145,7 @@ class _ModelsGenerator {
       case SchemeDeclaration.allOf:
         return _generateModelOfAll(schema);
       case SchemeDeclaration.oneOf:
-        return _generateModelOfOne(schema);
+        return _generateModelOfOne(schema, propModelName: propModelName);
       case SchemeDeclaration.unknown:
         //print('$dec\n$schema');
         throw Exception(
@@ -170,6 +173,7 @@ class _ModelsGenerator {
   ApiModel _generateModelOfRef(
     String reference, {
     String? superRef,
+    String? superVirtualModel,
   }) {
     // print('GEN MODEL OF REF $reference');
     String? supRef = superRef != null ? u.formatReference(superRef) : null;
@@ -178,7 +182,11 @@ class _ModelsGenerator {
     MapEntry? supModel = _schemas.entries[supRef];
     if (modelMap != null) {
       // print('generate model of ref $ref');
-      ApiModel model = _generateModel(modelMap, supModelMap: supModel);
+      ApiModel model = _generateModel(
+        modelMap,
+        supModelMap: supModel,
+        virtualModel: superVirtualModel,
+      );
       return model;
     } else {
       throw Exception('model $ref not found in schemas');
@@ -199,7 +207,7 @@ class _ModelsGenerator {
     }
   }
 
-  ApiModel _generateModelOfOne(YamlMap schema) {
+  ApiModel _generateModelOfOne(YamlMap schema, {propModelName = ''}) {
     YamlList? list = schema[c.one];
     if (list == null) {
       throw Exception('EXCEPTION list oneOf is $list');
@@ -209,13 +217,20 @@ class _ModelsGenerator {
       String ref = list.first[c.ref];
       return _generateModelOfRef(ref);
     } else if (list.length > 1) {
-      List<ApiModel> generatedModels = [];
-      //todo убрать у наследников поля-копии предков
-      list.forEachReverse((e, prevE) {
-        ApiModel model = _generateModelOfRef(e[c.ref], superRef: prevE?[c.ref]);
-        generatedModels.add(model);
-      });
-      return generatedModels.last;
+      List<ApiModel> modelsForMerge = [];
+      YamlList list = schema[c.one];
+      for (YamlMap schema in list) {
+        ApiModel forMerge = _generateModelOfRef(
+          schema[c.ref],
+          superVirtualModel: propModelName,
+        );
+        modelsForMerge.add(forMerge);
+      }
+      ApiModel virtualModel =
+          u.mergeModels(modelsForMerge, newName: propModelName);
+      modelsForMerge.removeMatchingModel(virtualModel);
+      _generateModelsList.replaceModels(modelsForMerge);
+      return virtualModel;
     } else {
       throw Exception(
           'EXCEPTION cases oneOf not covered len:\n---${list.length}---');
@@ -225,12 +240,18 @@ class _ModelsGenerator {
   ApiModel _generateModel(
     MapEntry modelMap, {
     MapEntry? supModelMap,
+    String? virtualModel,
   }) {
     // print('GENERATE MODEL OF\n--$modelMap---\nand---\n$supModelMap');
     if (_generateModelsList.exist(modelMap.key)) {
       // print('${c.prStart} ALREADY EXIST ${modelMap.key}${c.prEnd}');
-      ApiModel? buf = _generateModelsList.i(modelMap.key);
+      ApiModel? buf = _generateModelsList.item(modelMap.key);
       if (buf != null) {
+        String apiPath = _currentMethodProcess!.apiPath;
+        if (!buf.usages.contains(apiPath)) {
+          buf.usages = List.from(buf.usages)..add(apiPath);
+        }
+        // print('BUF AFTER EXISTED $buf');
         return buf;
       } else {
         throw Exception('MODEL NOT FOUND');
@@ -250,18 +271,16 @@ class _ModelsGenerator {
         fields.addAll(_generateFields(map.value));
       }
     }
-    List<ApiField> superFields = [];
     ApiModel? superModel;
     if (supModelMap != null) {
-      //print('generate super model $supModelMap');
       superModel = _generateModel(supModelMap);
-      superFields = superModel.fields;
     }
     ApiModel model = ApiModel(
       name: modelMap.key,
       fields: fields,
-      superFields: superFields,
       superModel: superModel,
+      superVirtualModel: virtualModel,
+      usages: [_currentMethodProcess!.apiPath],
     );
     //print('end generate model ${modelMap.key}');
     _generateModelsList.add(model);
@@ -310,8 +329,7 @@ class _ModelsGenerator {
         String? arrayRef = u.getRefFromMap(fieldMap.value);
         String? itemRef = u.getRefFromMap(itemScheme);
         String className = genArrayModelName(fieldMap.key, arrayRef, itemRef);
-        model =
-            _getModelFromDeclaration(itemScheme, propModelName: className);
+        model = _getModelFromDeclaration(itemScheme, propModelName: className);
         type = 'List<${model.name}>';
       case SchemasType.array:
         throw Exception('ITEM OF ARRAY IS ARRAY');
