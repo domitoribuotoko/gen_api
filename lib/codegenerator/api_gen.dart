@@ -1,25 +1,25 @@
-import 'package:equatable/equatable.dart';
-import 'package:gen_yaml/codegenerator/printer.dart';
-import 'package:gen_yaml/codegenerator/printer2.dart';
+import 'dart:io';
 import 'package:gen_yaml/codegenerator/utils/enums.dart';
 import 'package:gen_yaml/codegenerator/utils/support_classes.dart';
 import 'package:gen_yaml/codegenerator/utils/utils.dart';
+import 'package:gen_yaml/codegenerator/utils/consts.dart';
+import 'package:recase/recase.dart';
 import 'package:yaml/yaml.dart';
-
-import 'utils/consts.dart';
 
 part 'generator.dart';
 
+part 'printer.dart';
+
 class ApiGen {
-  String _outputPath;
-  YamlMap _yaml;
-  YamlList _tags;
-  YamlMap _schemas;
-  YamlMap _paths;
+  final String? _outputPath;
+  final YamlMap _yaml;
+  final YamlList _tags;
+  final YamlMap _schemas;
+  final YamlMap _paths;
 
   ApiGen({
     required YamlMap yaml,
-    required String outputPath,
+    required String? outputPath,
   })  : _outputPath = outputPath,
         _yaml = yaml,
         _tags = yaml['tags'],
@@ -29,14 +29,7 @@ class ApiGen {
   }
 
   void _run() {
-    _ModelsGenerator generator = _ModelsGenerator(
-      paths: _paths,
-      schemas: _schemas,
-      tags: _tags,
-      yaml: _yaml,
-    );
-    GeneratedModels result = generator.generate();
-    // print('GEN COMPLITE $result');
-    Printer2(methods: result.methods, models: result.models);
+    _ModelsGenerator generator = _ModelsGenerator(api: this);
+    _Printer(generated: generator.generate(), output: _outputPath);
   }
 }

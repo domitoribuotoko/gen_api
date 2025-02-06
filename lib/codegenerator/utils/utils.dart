@@ -108,10 +108,11 @@ class Utility {
         return 'String';
       case 'integer':
       case 'number':
-        if (format == 'double' || format == 'float')
+        if (format == 'double' || format == 'float') {
           return 'double';
-        else
+        } else {
           return 'int';
+        }
       case 'boolean':
         return 'bool';
       case 'array':
@@ -125,9 +126,9 @@ class Utility {
   static StringBuffer clientClass() {
     StringBuffer buffer = StringBuffer();
 
-    buffer.writeln("\npart 'api_client.g.dart';\n");
-    buffer.writeln('@RestApi()\nclass ApiClient {\n');
-    buffer.writeln(
+    buffer.writelnIfNotEmpty("\npart 'api_client.g.dart';\n");
+    buffer.writelnIfNotEmpty('@RestApi()\nabstract class ApiClient {\n');
+    buffer.writelnIfNotEmpty(
         '  factory ApiClient(Dio dio, {String baseUrl}) = _ApiClient;\n');
 
     return buffer;
@@ -136,31 +137,58 @@ class Utility {
   static StringBuffer clientFile() {
     StringBuffer buffer = StringBuffer();
 
-    buffer.writeln("import 'package:retrofit/retrofit.dart';");
-    buffer.writeln("import 'package:dio/dio.dart';");
+    buffer.writelnIfNotEmpty("import 'package:retrofit/retrofit.dart';");
+    buffer.writelnIfNotEmpty("import 'package:dio/dio.dart';");
 
     return buffer;
   }
 
   static StringBuffer _initModel(ApiModel model) {
     StringBuffer modelDefinition = StringBuffer();
-    // Добавляем аннотацию для сериализации
-    modelDefinition.writeln('@JsonSerializable()');
-    // Проверяем, есть ли супермодель, и добавляем её в определение класса
+    modelDefinition.writelnIfNotEmpty('@JsonSerializable()');
     if (model.superModel != null) {
-      modelDefinition
-          .writeln('class ${model.name} extends ${model.superModel!.name} {');
+      modelDefinition.writelnIfNotEmpty(
+          'class ${model.name} extends ${model.superModel!.name} {');
     } else {
-      modelDefinition.writeln('class ${model.name} {');
+      modelDefinition.writelnIfNotEmpty('class ${model.name} {');
     }
     return modelDefinition;
   }
 
+  static String generateModelImport(String path) {
+    path = path.replaceAll('lib/', '');
+    return "import 'package:${u.projDir}/$path';";
+  }
+
+  static void maybeAddImport(String path, StringBuffer clientImports) {
+    if (path.isNotEmpty) {
+      String import = u.generateModelImport(path);
+      if (!clientImports.containsLine(import)) {
+        clientImports.writelnIfNotEmpty(import);
+      }
+    }
+  }
+
+  static void createApiClientFile(StringBuffer client, String basePath) {
+    // Убедимся, что директория существует
+    client.writelnIfNotEmpty('}');
+    String directoryPath = '$basePath/data';
+    Directory directory = Directory(directoryPath);
+    if (!directory.existsSync()) {
+      directory.createSync(recursive: true);
+    }
+
+    String filePath = '${directory.path}/api_client.dart';
+
+    File file = File(filePath);
+    file.writeAsStringSync(client.toString());
+  }
+
   static StringBuffer generateModelDefinition(ApiModel model) {
     return _initModel(model)
-      ..writeln(_modelFields(model))
-      ..writeln(_modelConstructor(model))
-      ..writeln(_jsonMethods(model.name));
+      ..writelnIfNotEmpty(_modelFields(model))
+      ..writelnIfNotEmpty(_modelConstructor(model))
+      ..writelnIfNotEmpty(_jsonMethods(model.name));
   }
 
   static StringBuffer _modelFields(ApiModel model) {
@@ -169,9 +197,9 @@ class Utility {
       String originalName = field.name;
       String processedName = processFieldName(originalName);
       if (processedName != originalName) {
-        buf.writeln('  @JsonKey(name: \'$originalName\')');
+        buf.writelnIfNotEmpty('  @JsonKey(name: \'$originalName\')');
       }
-      buf.writeln('  final ${field.type}? $processedName;');
+      buf.writelnIfNotEmpty('  final ${field.type}? $processedName;');
     }
     return buf;
   }
@@ -180,22 +208,22 @@ class Utility {
     StringBuffer buf = StringBuffer();
     if (model.fields.isNotEmpty || model.superModel != null) {
       // Генерируем конструктор
-      buf.writeln('  ${model.name}({');
+      buf.writelnIfNotEmpty('  ${model.name}({');
       // Добавляем поля из супермодели, если она есть
       if (model.superModel != null) {
         for (final field in model.superModel!.fields) {
           String processedName = processFieldName(field.name);
-          buf.writeln('    super.$processedName,');
+          buf.writelnIfNotEmpty('    super.$processedName,');
         }
       }
       // Добавляем поля текущей модели
       for (final field in model.fields) {
         String processedName = processFieldName(field.name);
-        buf.writeln('    this.$processedName,');
+        buf.writelnIfNotEmpty('    this.$processedName,');
       }
-      buf.writeln('  });');
+      buf.writelnIfNotEmpty('  });');
     } else {
-      buf.writeln('  ${model.name}();');
+      buf.writelnIfNotEmpty('  ${model.name}();');
     }
     return buf;
   }
@@ -208,11 +236,11 @@ class Utility {
 
   static StringBuffer _jsonMethods(String modelName) {
     StringBuffer buf = StringBuffer();
-    buf.writeln(
+    buf.writelnIfNotEmpty(
         '  factory $modelName.fromJson(Map<String, dynamic> json) => _\$${modelName}FromJson(json);');
-    buf.writeln(
+    buf.writelnIfNotEmpty(
         '  Map<String, dynamic> toJson() => _\$${modelName}ToJson(this);');
-    buf.writeln('}');
+    buf.writelnIfNotEmpty('}');
     return buf;
   }
 
@@ -228,13 +256,16 @@ class Utility {
     String requestType = method.request.name;
 
     // Записываем аннотацию HTTP метода
-    buffer.writeln('  @$httpMethod(\'$apiPath\')');
+    buffer.writelnIfNotEmpty('  @$httpMethod(\'$apiPath\')');
 
     // Записываем сигнатуру метода
-    buffer.writeln('  Future<$returnType> ${method.methodName}(');
-    buffer.writeln('    @Body() $requestType request,');
-    buffer.writeln('  );\n');
-
+    buffer.write('  Future<$returnType> ${method.methodName}(');
+    if (!method.request.isEmpty) {
+      buffer.writeln();
+      buffer.writelnIfNotEmpty('    @Body() $requestType request,');
+      buffer.write('  ');
+    }
+    buffer.writeln(');');
     return buffer;
   }
 
@@ -247,7 +278,11 @@ class Utility {
     return folderName;
   }
 
-  static ApiModel mergeModels(List<ApiModel> models, {String? newName}) {
+  static VirtualModel mergeModels(
+    List<ApiModel> models, {
+    String? newName,
+    String? methodPath,
+  }) {
     // Используем Map для хранения уникальных полей
     Map<String, ApiField> uniqueFields = {};
 
@@ -298,13 +333,13 @@ class Utility {
     }
 
     // Создаем новую модель с уникальными полями и объединенными usages
-    return ApiModel(
+    return VirtualModel(
       name: newName ?? 'MergedModel',
       fields: uniqueFields.values.toList(),
       superModel: uniqueSuperModels.isNotEmpty
           ? models.firstWhere((model) => model.superModel != null).superModel
           : null,
-      usages: combinedUsages,
+      usages: methodPath != null ? [methodPath] : combinedUsages,
     );
   }
 }
@@ -313,50 +348,99 @@ extension FindMapExtension on Iterable<MapEntry> {
   dynamic operator [](Object? key) => where((e) => e.key == key).firstOrNull;
 }
 
-extension ApiModelList on List<ApiModel> {
-  ApiModel? item(String key) => where((e) => e.name == key).firstOrNull;
+// extension YamlListExtension on YamlList {
+//   void forEachReverse(void Function(YamlMap e, YamlMap? prevE) callBack) {
+//     for (int index = length - 1; index > -1; index--) {
+//       callBack(elementAt(index), elementAtOrNull(index + 1));
+//     }
+//   }
+// }
+extension StringBufferExt on StringBuffer {
+  bool containsLine(String line) {
+    String content = toString();
+    return content.contains(line);
+  }
 
-  bool exist(String name) => where((e) => e.name == name).firstOrNull != null;
-
-  bool hasValidRequestModels() => any((e) => e.usages.length == 1);
-}
-
-extension YamlListExtension on YamlList {
-  void forEachReverse(void Function(YamlMap e, YamlMap? prevE) callBack) {
-    for (int index = length - 1; index > -1; index--) {
-      callBack(elementAt(index), elementAtOrNull(index + 1));
+  void writelnIfNotEmpty([Object obj = ""]) {
+    if (obj.toString().isNotEmpty) {
+      writeln(obj);
     }
   }
 }
 
 extension ApiModelListExtensions on List<ApiModel> {
-  void removeMatchingModel(ApiModel targetModel) {
+  ApiModel? item(String key) => where((e) => e.name == key).firstOrNull;
+
+  bool exist(String name) => where((e) => e.name == name).firstOrNull != null;
+
+  bool hasValidRequestModels() => any((e) => e.usages.length == 1);
+
+  bool get hasEmpty => any((e) => e.isEmpty);
+
+  ApiModel? findByName(String? name) {
+    return where((element) {
+      return element.name == name;
+    }).firstOrNull;
+  }
+
+  void removeDuplicates() {
+    Set<String> seenNames = <String>{};
+    removeWhere((ApiModel model) {
+      if (seenNames.contains(model.name)) {
+        // Если имя модели уже встречалось, удаляем её
+        return true;
+      } else {
+        // Если имя модели уникально, добавляем его в набор
+        seenNames.add(model.name);
+        return false;
+      }
+    });
+  }
+
+  List<ApiModel> childrenFromName(String modelName) {
+    return where((element) {
+      return element.superModel?.name == modelName;
+    }).toList();
+  }
+
+  void setVirtualModel(VirtualModel virtualModel) {
+    for (int i = 0; i < length; i++) {
+      this[i] = this[i].copyWith(superModel: virtualModel);
+    }
+  }
+
+  void replaceSingle(ApiModel newModel) {
+    int index = indexWhere(
+      (element) => element.name == newModel.name,
+    );
+    if (index != -1) {
+      this[index] = newModel;
+    } else {
+      throw Exception('NO MODEL TO REPLACE');
+    }
+  }
+
+  void removeMatchingModel(VirtualModel virtualModel) {
     removeWhere((model) {
       bool allFieldsMatch = true;
-
       // Проверяем, покрываются ли все поля модели из списка полями модели для сравнения
       for (final field in model.fields) {
-        final matchingField = targetModel.fields.any(
+        final matchingField = virtualModel.fields.any(
           (targetField) =>
               targetField.name == field.name && targetField.type == field.type,
         );
-
         if (!matchingField) {
           allFieldsMatch = false;
         }
       }
-
       // Если все поля совпадают, удаляем модель
       if (allFieldsMatch) {
         return true;
       } else {
         // Удаляем совпадающие поля из модели
         model.fields.removeWhere((field) {
-          return targetModel.fields.any(
-            (targetField) =>
-                targetField.name == field.name &&
-                targetField.type == field.type,
-          );
+          return virtualModel.fields.any((targetField) =>
+              targetField.name == field.name && targetField.type == field.type);
         });
         return false;
       }
@@ -365,19 +449,11 @@ extension ApiModelListExtensions on List<ApiModel> {
 
   void replaceModels(List<ApiModel> inputModels) {
     for (var inputModel in inputModels) {
-      // Найти индекс модели с таким же именем в основном списке
       int index = indexWhere((model) => model.name == inputModel.name);
-
       if (index != -1) {
-        // Логирование замены модели
-        print(
-            'Replacing model: ${this[index]} with new model from input list.');
-
-        // Заменить модель в основном списке на модель из входного списка
         this[index] = inputModel;
       } else {
-        // Логирование, если модель не найдена
-        print('Model not found in the main list: $inputModel');
+        throw Exception('NO MODEL FOR REPLACING');
       }
     }
   }

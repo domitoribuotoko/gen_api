@@ -1,6 +1,7 @@
 typedef c = Consts;
 
 class Consts {
+  static const String impJson ="import 'package:json_annotation/json_annotation.dart';";
   static const String multipart = 'multipart/form-data';
   static const String json = 'application/json';
   static const String cont = 'content';

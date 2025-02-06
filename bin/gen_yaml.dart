@@ -4,10 +4,12 @@ import 'package:gen_yaml/codegenerator/api_gen.dart';
 import 'package:yaml/yaml.dart';
 import 'package:args/args.dart';
 
+
 void main(List<String> args) async {
+  print('run gen_yaml.dart');
   final parser = ArgParser()
-    ..addOption('input', abbr: 'i', help: 'Path to OpenAPI yaml file',defaultsTo:'openapi.yaml')
-    ..addOption('output', abbr: 'o', help: 'Output directory path',defaultsTo: 'lib');
+    ..addOption('input', abbr: 'i', defaultsTo: 'openapi.yaml')
+    ..addOption('output', abbr: 'o', defaultsTo: 'lib');
 
   final results = parser.parse(args);
 

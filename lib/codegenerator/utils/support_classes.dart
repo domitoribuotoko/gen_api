@@ -1,7 +1,7 @@
 import 'package:equatable/equatable.dart';
 import 'package:gen_yaml/codegenerator/utils/utils.dart';
 
-class GeneratedModels extends Equatable {
+class GeneratedModels {
   final List<ApiMethod> methods;
   final List<ApiModel> models;
 
@@ -10,8 +10,6 @@ class GeneratedModels extends Equatable {
     required this.models,
   });
 
-  @override
-  List<Object?> get props => [models];
 }
 
 class ApiField extends Equatable {
@@ -35,38 +33,41 @@ class ApiModel extends Equatable {
   final String name;
   final List<ApiField> fields;
   final ApiModel? superModel;
-  final String? superVirtualModel;
-  List<String> usages;
+  final List<String> usages;
 
-  ApiModel({
+  const ApiModel({
     required this.name,
     required this.fields,
     this.superModel,
     this.usages = const [],
-    this.superVirtualModel,
   });
 
   bool get isVirtual => this is VirtualModel;
 
+  bool get isEmpty => this is EmptyModel;
+
   @override
   List<Object?> get props =>
-      [name, 'super ${superModel?.name ?? superVirtualModel}', usages, fields];
+      [name, 'super ${superModel?.name}', usages, fields];
 
-// ApiModel copyWith({
-//   String? name,
-//   List<ApiField>? fields,
-//   List<ApiField>? superFields,
-//   ApiModel? superModel,
-//   int? usages,
-// }) {
-//   return ApiModel(
-//     name: name ?? this.name,
-//     fields: fields ?? this.fields,
-//     superFields: superFields ?? this.superFields,
-//     superModel: superModel ?? this.superModel,
-//     usages: usages ?? this.usages,
-//   );
-// }
+  ApiModel copyWith({
+    String? name,
+    List<ApiField>? fields,
+    ApiModel? superModel,
+    List<String>? usages,
+    String? newUsage,
+  }) {
+    List<String>? newUsages = usages ?? this.usages;
+    if (newUsage != null && !newUsages.contains(newUsage)) {
+      newUsages.add(newUsage);
+    }
+    return ApiModel(
+      name: name ?? this.name,
+      fields: fields ?? this.fields,
+      superModel: superModel ?? this.superModel,
+      usages: newUsages,
+    );
+  }
 }
 
 class EmptyModel extends ApiModel {
@@ -80,6 +81,8 @@ class VirtualModel extends ApiModel {
   VirtualModel({
     required super.name,
     super.fields = const [],
+    super.superModel,
+    super.usages,
   });
 }
 

@@ -1,23 +1,16 @@
 part of 'api_gen.dart';
 
 class _ModelsGenerator {
-  YamlMap _yaml;
-  YamlList _tags;
-  YamlMap _schemas;
-  YamlMap _paths;
+  final YamlMap _schemas;
+  final YamlMap _paths;
 
   _ModelsGenerator({
-    required YamlMap yaml,
-    required YamlList tags,
-    required YamlMap paths,
-    required YamlMap schemas,
-  })  : _paths = paths,
-        _schemas = schemas,
-        _tags = tags,
-        _yaml = yaml;
+    required ApiGen api,
+  })  : _paths = api._paths,
+        _schemas = api._schemas;
 
-  List<ApiModel> _generateModelsList = [];
-  List<ApiMethod> _generateMethodList = [];
+  final List<ApiModel> _generateModelsList = [];
+  final List<ApiMethod> _generateMethodList = [];
   ApiMethod? _currentMethodProcess;
 
   GeneratedModels generate() {
@@ -173,7 +166,6 @@ class _ModelsGenerator {
   ApiModel _generateModelOfRef(
     String reference, {
     String? superRef,
-    String? superVirtualModel,
   }) {
     // print('GEN MODEL OF REF $reference');
     String? supRef = superRef != null ? u.formatReference(superRef) : null;
@@ -185,7 +177,6 @@ class _ModelsGenerator {
       ApiModel model = _generateModel(
         modelMap,
         supModelMap: supModel,
-        virtualModel: superVirtualModel,
       );
       return model;
     } else {
@@ -217,20 +208,21 @@ class _ModelsGenerator {
       String ref = list.first[c.ref];
       return _generateModelOfRef(ref);
     } else if (list.length > 1) {
-      List<ApiModel> modelsForMerge = [];
+      List<ApiModel> childrenModels = [];
       YamlList list = schema[c.one];
       for (YamlMap schema in list) {
-        ApiModel forMerge = _generateModelOfRef(
-          schema[c.ref],
-          superVirtualModel: propModelName,
-        );
-        modelsForMerge.add(forMerge);
+        ApiModel forMerge = _generateModelOfRef(schema[c.ref]);
+        childrenModels.add(forMerge);
       }
-      ApiModel virtualModel =
-          u.mergeModels(modelsForMerge, newName: propModelName);
-      modelsForMerge.removeMatchingModel(virtualModel);
-      _generateModelsList.replaceModels(modelsForMerge);
-      return virtualModel;
+      VirtualModel parentVirtualModel = u.mergeModels(
+        childrenModels,
+        newName: propModelName,
+        methodPath: _currentMethodProcess!.apiPath,
+      );
+      childrenModels.removeMatchingModel(parentVirtualModel);
+      childrenModels.setVirtualModel(parentVirtualModel);
+      _generateModelsList.replaceModels(childrenModels);
+      return parentVirtualModel;
     } else {
       throw Exception(
           'EXCEPTION cases oneOf not covered len:\n---${list.length}---');
@@ -240,22 +232,14 @@ class _ModelsGenerator {
   ApiModel _generateModel(
     MapEntry modelMap, {
     MapEntry? supModelMap,
-    String? virtualModel,
   }) {
     // print('GENERATE MODEL OF\n--$modelMap---\nand---\n$supModelMap');
-    if (_generateModelsList.exist(modelMap.key)) {
+    ApiModel? existed = _generateModelsList.item(modelMap.key);
+    if (existed != null) {
       // print('${c.prStart} ALREADY EXIST ${modelMap.key}${c.prEnd}');
-      ApiModel? buf = _generateModelsList.item(modelMap.key);
-      if (buf != null) {
-        String apiPath = _currentMethodProcess!.apiPath;
-        if (!buf.usages.contains(apiPath)) {
-          buf.usages = List.from(buf.usages)..add(apiPath);
-        }
-        // print('BUF AFTER EXISTED $buf');
-        return buf;
-      } else {
-        throw Exception('MODEL NOT FOUND');
-      }
+      String apiPath = _currentMethodProcess!.apiPath;
+      _generateModelsList.replaceSingle(existed.copyWith(newUsage: apiPath));
+      return existed;
     }
     // print('start generate model ${modelMap}');
     YamlMap properties = modelMap.value[c.prop] as YamlMap;
@@ -279,7 +263,6 @@ class _ModelsGenerator {
       name: modelMap.key,
       fields: fields,
       superModel: superModel,
-      superVirtualModel: virtualModel,
       usages: [_currentMethodProcess!.apiPath],
     );
     //print('end generate model ${modelMap.key}');
