@@ -5,33 +5,5 @@ import 'package:yaml/yaml.dart';
 import 'package:args/args.dart';
 
 void main(List<String> args) async {
-  final parser = ArgParser()
-    ..addOption('input', abbr: 'i', help: 'Path to OpenAPI yaml file',defaultsTo:'openapi.yaml')
-    ..addOption('output', abbr: 'o', help: 'Output directory path',defaultsTo: 'lib');
 
-  final results = parser.parse(args);
-
-  if (results['input'] == null) {
-    throw Exception('Please provide input file path using --input or -i');
-    // exit(1);
-  }
-
-  String inputPath = results['input'] as String;
-  String? outputPath = results['output'] as String? ?? 'lib/generated';
-
-  final file = File(inputPath);
-  if (!file.existsSync()) {
-    throw Exception('Input file not found: $inputPath');
-    // exit(1);
-  }
-
-  final yamlString = await file.readAsString();
-  final yaml = loadYaml(yamlString);
-
-  await generateData(yaml, outputPath);
-}
-
-Future<void> generateData(YamlMap yaml, String? outputPath) async {
-  EquatableConfig.stringify = true;
-  ApiGen(yaml: yaml, outputPath: outputPath);
 }
