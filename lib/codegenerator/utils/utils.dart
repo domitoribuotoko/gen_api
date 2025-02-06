@@ -4,7 +4,6 @@ import 'package:gen_yaml/codegenerator/utils/consts.dart';
 import 'package:gen_yaml/codegenerator/utils/enums.dart';
 import 'package:gen_yaml/codegenerator/utils/support_classes.dart';
 import 'package:gen_yaml/run.dart';
-import 'package:package_info_plus/package_info_plus.dart';
 import 'package:recase/recase.dart';
 import 'package:yaml/yaml.dart';
 
@@ -159,7 +158,7 @@ class Utility {
 
   static String generateModelImport(String path) {
     path = path.replaceAll('lib/', '');
-    return "import 'package:${u.projDir}/$path';";
+    return "import 'package:$appName/$path';";
   }
 
   static void maybeAddImport(String path, StringBuffer clientImports) {
@@ -274,7 +273,6 @@ class Utility {
   static String get projDir => _getCurrentProjectFolderName();
 
   static String _getCurrentProjectFolderName() {
-    return appName;
     Directory currentDirectory = Directory.current;
     String currentPath = currentDirectory.path;
     String folderName = currentPath.split(Platform.pathSeparator).last;
