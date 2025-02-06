@@ -50,5 +50,5 @@ Future<String> packageName()async{
     throw Exception('no pubspec: $path');
   }
   String string = await file.readAsString();
-  return string.split('description').first.replaceAll('name: ', '');
+  return string.split('description').first.replaceAll('name: ', '').trim();
 }
