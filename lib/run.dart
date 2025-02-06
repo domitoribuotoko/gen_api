@@ -10,7 +10,7 @@ String appName = '';
 class Run {
   static Future<void> run(List<String> args) async {
     PackageInfo packageInfo = await PackageInfo.fromPlatform();
-    appName = packageInfo.appName;
+    appName = packageInfo.packageName;
     final parser = ArgParser()
       ..addOption('input', abbr: 'i', defaultsTo: 'openapi.yaml')
       ..addOption('output', abbr: 'o', defaultsTo: 'lib');
