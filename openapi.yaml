@@ -1055,10 +1055,7 @@ components:
       description: 'Запрос с данными об устройстве'
       properties:
         os:
-          type: string
-          nullable: false
-          description: 'Тип операционной системы (ios/android)'
-          example: 'ios'
+          $ref: '#/components/schemas/BaseResponse'
         manufacturer:
           type: string
           nullable: false
@@ -1115,10 +1112,7 @@ components:
       description: 'Запрос проверки наличия обновлений'
       properties:
         os:
-          type: string
-          nullable: false
-          description: 'Тип операционной системы (String ios/android)'
-          example: 'ios'
+          $ref: '#/components/schemas/BaseResponse'
         version:
           type: string
           nullable: false

@@ -11,18 +11,14 @@ part 'generator.dart';
 part 'printer.dart';
 
 class ApiGen {
-  final String? _outputPath;
-  final YamlMap _yaml;
-  final YamlList _tags;
+  final String _outputPath;
   final YamlMap _schemas;
   final YamlMap _paths;
 
   ApiGen({
     required YamlMap yaml,
-    required String? outputPath,
+    required String outputPath,
   })  : _outputPath = outputPath,
-        _yaml = yaml,
-        _tags = yaml['tags'],
         _schemas = yaml['components']['schemas'],
         _paths = yaml['paths'] {
     _run();
@@ -30,6 +26,6 @@ class ApiGen {
 
   void _run() {
     _ModelsGenerator generator = _ModelsGenerator(api: this);
-    _Printer(generated: generator.generate(), output: _outputPath);
+    _Printer(generated: generator.generate(), outDir: _outputPath);
   }
 }

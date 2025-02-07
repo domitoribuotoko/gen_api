@@ -1,5 +1,6 @@
 import 'package:equatable/equatable.dart';
-import 'package:gen_yaml/codegenerator/utils/utils.dart';
+
+class FileParts {}
 
 class GeneratedModels {
   final List<ApiMethod> methods;
@@ -9,7 +10,6 @@ class GeneratedModels {
     required this.methods,
     required this.models,
   });
-
 }
 
 class ApiField extends Equatable {
@@ -41,6 +41,8 @@ class ApiModel extends Equatable {
     this.superModel,
     this.usages = const [],
   });
+
+  bool get isBase => usages.length > 1;
 
   bool get isVirtual => this is VirtualModel;
 

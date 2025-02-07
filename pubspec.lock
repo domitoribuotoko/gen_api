@@ -55,7 +55,7 @@ packages:
     source: hosted
     version: "2.4.2"
   build_config:
-    dependency: transitive
+    dependency: "direct dev"
     description:
       name: build_config
       sha256: "4ae2de3e1e67ea270081eaee972e1bd8f027d459f249e0f1186730784c2e7e33"
@@ -441,7 +441,7 @@ packages:
     source: hosted
     version: "2.1.5"
   pubspec_parse:
-    dependency: transitive
+    dependency: "direct main"
     description:
       name: pubspec_parse
       sha256: "0560ba233314abbed0a48a2956f7f022cce7c3e1e73df540277da7544cad4082"

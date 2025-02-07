@@ -1,17 +1,27 @@
 import 'dart:io';
-
 import 'package:gen_yaml/codegenerator/utils/consts.dart';
 import 'package:gen_yaml/codegenerator/utils/enums.dart';
 import 'package:gen_yaml/codegenerator/utils/support_classes.dart';
 import 'package:gen_yaml/run.dart';
+import 'package:pubspec_parse/pubspec_parse.dart';
 import 'package:recase/recase.dart';
 import 'package:yaml/yaml.dart';
 
 typedef u = Utility;
 
 class Utility {
+
+  static String packageName() {
+    String path = 'pubspec.yaml';
+    final file = File(path);
+    if (!file.existsSync()) {
+      throw Exception('no pubspec: $path');
+    }
+    String yaml = file.readAsStringSync();
+    return Pubspec.parse(yaml).name;
+  }
+
   static SchemasType getFieldType(YamlMap fieldValue, YamlMap schemas) {
-    // print('GET FIELD TYPE $fieldValue');
     SchemeDeclaration dec = getSchemaDeclaration(fieldValue);
     if (dec.isAnyReference) {
       YamlMap schema = getSchemaFromRef(fieldValue, schemas);
@@ -32,9 +42,6 @@ class Utility {
   static String? getRefFromMap(YamlMap fieldValue) {
     YamlList? list = fieldValue[c.one] ?? fieldValue[c.all];
     String? flatRef = fieldValue[c.ref] ?? list?.first[c.ref];
-    // if ((list != null && flatRef == null) || flatRef == null) {
-    //   throw Exception('ref is null for $fieldValue list $list');
-    // }
     return flatRef;
   }
 
@@ -98,8 +105,6 @@ class Utility {
     return reference.split('/').last;
   }
 
-  static String newLine(Object? value) => '\n$value\n';
-
   static String generateType(String? type, String? format) {
     if (type == null && format == null) {
       throw Exception('PARSE FIELD TYPE ERROR');
@@ -126,8 +131,7 @@ class Utility {
 
   static StringBuffer clientClass() {
     StringBuffer buffer = StringBuffer();
-
-    buffer.writelnIfNotEmpty("\npart 'api_client.g.dart';\n");
+    buffer.writelnIfNotEmpty(u.part('api_client'));
     buffer.writelnIfNotEmpty('@RestApi()\nabstract class ApiClient {\n');
     buffer.writelnIfNotEmpty(
         '  factory ApiClient(Dio dio, {String baseUrl}) = _ApiClient;\n');
@@ -142,6 +146,13 @@ class Utility {
     buffer.writelnIfNotEmpty("import 'package:dio/dio.dart';");
 
     return buffer;
+  }
+
+  static StringBuffer generateModelDefinition(ApiModel model) {
+    return _initModel(model)
+      ..writelnIfNotEmpty(_modelFields(model))
+      ..writelnIfNotEmpty(_modelConstructor(model))
+      ..writelnIfNotEmpty(_jsonMethods(model.name));
   }
 
   static StringBuffer _initModel(ApiModel model) {
@@ -183,13 +194,6 @@ class Utility {
 
     File file = File(filePath);
     file.writeAsStringSync(client.toString());
-  }
-
-  static StringBuffer generateModelDefinition(ApiModel model) {
-    return _initModel(model)
-      ..writelnIfNotEmpty(_modelFields(model))
-      ..writelnIfNotEmpty(_modelConstructor(model))
-      ..writelnIfNotEmpty(_jsonMethods(model.name));
   }
 
   static StringBuffer _modelFields(ApiModel model) {
@@ -270,9 +274,7 @@ class Utility {
     return buffer;
   }
 
-  static String get projDir => _getCurrentProjectFolderName();
-
-  static String _getCurrentProjectFolderName() {
+  static String get projDir {
     Directory currentDirectory = Directory.current;
     String currentPath = currentDirectory.path;
     String folderName = currentPath.split(Platform.pathSeparator).last;
@@ -343,6 +345,11 @@ class Utility {
       usages: methodPath != null ? [methodPath] : combinedUsages,
     );
   }
+
+  static String part(String of) {
+    return "\npart '$of.g.dart';";
+  }
+
 }
 
 extension FindMapExtension on Iterable<MapEntry> {
@@ -363,28 +370,26 @@ extension StringBufferExt on StringBuffer {
   }
 
   void writelnIfNotEmpty([Object obj = ""]) {
-    if (obj.toString().isNotEmpty) {
+    if (obj.toString().trim().isNotEmpty) {
       writeln(obj);
     }
   }
 }
 
 extension ApiModelListExtensions on List<ApiModel> {
-  ApiModel? item(String key) => where((e) => e.name == key).firstOrNull;
+  ApiModel? itemByName(String name) => where((e) => e.name == name).firstOrNull;
 
-  bool exist(String name) => where((e) => e.name == name).firstOrNull != null;
+  List<ApiModel> childrenFromName(String parentName) {
+    return where((e) => e.superModel?.name == parentName).toList();
+  }
 
-  bool hasValidRequestModels() => any((e) => e.usages.length == 1);
+  // bool exist(String name) => where((e) => e.name == name).firstOrNull != null;
+
+  // bool get hasSingleUsageModel => any((e) => e.isBase);
 
   bool get hasEmpty => any((e) => e.isEmpty);
 
-  ApiModel? findByName(String? name) {
-    return where((element) {
-      return element.name == name;
-    }).firstOrNull;
-  }
-
-  void removeDuplicates() {
+  void get removeDuplicates {
     Set<String> seenNames = <String>{};
     removeWhere((ApiModel model) {
       if (seenNames.contains(model.name)) {
@@ -396,12 +401,6 @@ extension ApiModelListExtensions on List<ApiModel> {
         return false;
       }
     });
-  }
-
-  List<ApiModel> childrenFromName(String modelName) {
-    return where((element) {
-      return element.superModel?.name == modelName;
-    }).toList();
   }
 
   void setVirtualModel(VirtualModel virtualModel) {

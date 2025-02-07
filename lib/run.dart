@@ -1,54 +1,56 @@
 import 'dart:io';
 import 'package:equatable/equatable.dart';
 import 'package:gen_yaml/codegenerator/api_gen.dart';
+import 'package:gen_yaml/codegenerator/utils/utils.dart';
 import 'package:yaml/yaml.dart';
 import 'package:args/args.dart';
 
-String appName = 'gen_yaml';
+String appName = u.projDir;
 
 class Run {
   static Future<void> run(List<String> args) async {
-    // PackageInfo packageInfo = await PackageInfo.fromPlatform();
-    appName = await packageName();
-    print('APP NAme IS $appName');
+    EquatableConfig.stringify = true;
+    appName = u.packageName();
     final parser = ArgParser()
       ..addOption('input', abbr: 'i', defaultsTo: 'openapi.yaml')
-      ..addOption('output', abbr: 'o', defaultsTo: 'lib');
+      ..addOption('output', abbr: 'o', defaultsTo: 'lib')
+      ..addFlag('run_build', abbr: 'b', defaultsTo: false);
 
-    final results = parser.parse(args);
+    ArgResults results = parser.parse(args);
 
     if (results['input'] == null) {
       throw Exception('Please provide input file path using --input or -i');
-      // exit(1);
     }
 
     String inputPath = results['input'] as String;
-    String? outputPath = results['output'] as String? ?? 'lib/generated';
-
+    String outputPath = results['output'] as String? ?? 'lib/generated';
+    bool isBuild = results['run_build'] ?? false;
     final file = File(inputPath);
     if (!file.existsSync()) {
       throw Exception('Input file not found: $inputPath');
-      // exit(1);
     }
 
-    final yamlString = await file.readAsString();
+    final yamlString = file.readAsStringSync();
     final yaml = loadYaml(yamlString);
 
-    await generateData(yaml, outputPath);
+    ApiGen(yaml: yaml, outputPath: outputPath);
+    _maybeRunBuilder(inputIsBuild: isBuild);
   }
 }
 
-Future<void> generateData(YamlMap yaml, String? outputPath) async {
-  EquatableConfig.stringify = true;
-  ApiGen(yaml: yaml, outputPath: outputPath);
-}
-
-Future<String> packageName()async{
-  String path ='pubspec.yaml';
-  final file = File(path);
-  if (!file.existsSync()) {
-    throw Exception('no pubspec: $path');
+void _maybeRunBuilder({bool inputIsBuild = false}) {
+  File pubspecFile = File('pubspec.yaml');
+  if (!pubspecFile.existsSync()) {
+    throw Exception('pubspec.yaml not found');
   }
-  String string = await file.readAsString();
-  return string.split('description').first.replaceAll('name: ', '').trim();
+  String pubspecContent = pubspecFile.readAsStringSync();
+  YamlMap pubspec = loadYaml(pubspecContent);
+  YamlMap? genYamlConfig = pubspec['gen_yaml'];
+  bool? paramIsBuild = genYamlConfig?['isRunBuilder'] as bool?;
+  bool isParamSet = paramIsBuild != null;
+  bool isBuild =
+      (inputIsBuild && isParamSet && paramIsBuild) || (paramIsBuild == true);
+  if (isBuild) {
+    Process.run('dart', ['run', 'build_runner', 'build', '-d']);
+  }
 }

@@ -1,7 +1,11 @@
 typedef c = Consts;
 
 class Consts {
-  static const String impJson ="import 'package:json_annotation/json_annotation.dart';";
+  static const String data = '/data';
+  static const String models = '/models';
+  static const String base = '/_base';
+  static const String impJson =
+      "import 'package:json_annotation/json_annotation.dart';";
   static const String multipart = 'multipart/form-data';
   static const String json = 'application/json';
   static const String cont = 'content';
@@ -23,6 +27,4 @@ class Consts {
   static const String format = 'format';
   static const int code200 = 200;
   static const String cs200 = '200';
-  static const String prStart = '---/--- ---/--- ---/--- \n';
-  static const String prEnd = '\n---/--- ---/--- ---/---';
 }

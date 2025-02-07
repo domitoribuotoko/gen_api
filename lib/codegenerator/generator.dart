@@ -233,15 +233,6 @@ class _ModelsGenerator {
     MapEntry modelMap, {
     MapEntry? supModelMap,
   }) {
-    // print('GENERATE MODEL OF\n--$modelMap---\nand---\n$supModelMap');
-    ApiModel? existed = _generateModelsList.item(modelMap.key);
-    if (existed != null) {
-      // print('${c.prStart} ALREADY EXIST ${modelMap.key}${c.prEnd}');
-      String apiPath = _currentMethodProcess!.apiPath;
-      _generateModelsList.replaceSingle(existed.copyWith(newUsage: apiPath));
-      return existed;
-    }
-    // print('start generate model ${modelMap}');
     YamlMap properties = modelMap.value[c.prop] as YamlMap;
     YamlList? additionalProps = modelMap.value[c.all];
     List<ApiField> fields = _generateFields(properties);
@@ -266,7 +257,14 @@ class _ModelsGenerator {
       usages: [_currentMethodProcess!.apiPath],
     );
     //print('end generate model ${modelMap.key}');
-    _generateModelsList.add(model);
+    ApiModel? existed = _generateModelsList.itemByName(modelMap.key);
+    if (existed != null) {
+      String apiPath = _currentMethodProcess!.apiPath;
+      _generateModelsList.replaceSingle(existed.copyWith(newUsage: apiPath));
+      return existed;
+    } else {
+      _generateModelsList.add(model);
+    }
     //print('end generate model ${model}');
     return model;
   }

@@ -1,16 +1,14 @@
-# gen_yaml
+Генерация слоя data проекта
 
-A new Flutter project.
 
-## Getting Started
+Запуск  "dart run gen_yaml gen"
+параметры:
+    -i Файл документации апи .yaml на вход (По умолчанию openapi.yaml)
+    -o место создания папки data (оп умолчанию lib)
+    -b Флаг без указания параметра. При наличии генератор вызывает build_runner build в конце
 
-This project is a starting point for a Flutter application.
-
-A few resources to get you started if this is your first Flutter project:
-
-- [Lab: Write your first Flutter app](https://docs.flutter.dev/get-started/codelab)
-- [Cookbook: Useful Flutter samples](https://docs.flutter.dev/cookbook)
-
-For help getting started with Flutter development, view the
-[online documentation](https://docs.flutter.dev/), which offers tutorials,
-samples, guidance on mobile development, and a full API reference.
+Опции:
+    gen_yaml:
+        isRunBuilder: true
+    Параметр pubspec.yaml. При наличии генератор вызывает build_runner build в конце.
+Если параметр явно указан true|false, то наличие/отсутствие флага -b не важно
