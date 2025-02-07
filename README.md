@@ -12,3 +12,31 @@
         isRunBuilder: true
     Параметр pubspec.yaml. При наличии генератор вызывает build_runner build в конце.
 Если параметр явно указан true|false, то наличие/отсутствие флага -b не важно
+
+
+Пакет не поддерживает следующие аспекты (и не будет):
+    1. если в указанном рефе будет другой реф. Например:
+        schema:
+            oneOf:
+                - $ref: '#/components/schemas/otherModel'
+        otherModel:
+            oneOf:
+                - $ref: '#/components/schemas/otherModel2'
+                - $ref: '#/components/schemas/otherModel3'
+    2. Если поле будет сделано через oneOf референс на несколько полей.Например:
+        fieldName:
+            oneOf:
+                - $ref: '#/components/schemas/field1'
+                - $ref: '#/components/schemas/field2'
+        field1:
+            type: string
+            ...
+        field2:
+            type: string
+            ...
+
+Возможны другие моменты которые выдадут ошибку при генерации или создадут некорректные модели/методы
+В общем лучше следовать следующем правилам:
+    1. не использовать множественные рефы через oneOf или allOf. (Хотя по идее должно работать)
+    2. Все модели создавать через реф, так как у неё будет точно определённое имя, которое указано в
+yaml файле.

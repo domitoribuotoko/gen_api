@@ -22,6 +22,7 @@ class _Printer {
     if (Directory(_pathData).existsSync()) {
       Directory(_pathData).deleteSync(recursive: true);
     }
+
     StringBuffer clientImports = u.clientFile();
     StringBuffer clientClasses = u.clientClass();
     for (ApiMethod method in _methods) {
@@ -77,16 +78,16 @@ class _Printer {
     if (topLevelModel.isBase) {
       return _generateBaseModel(topLevelModel);
     }
-
     // Определяем директорию и путь для файла
     String? tag = method.tags.firstOrNull?.snakeCase;
-    String methodDir = method.methodName.snakeCase;
-    String name = isRequest ? 'request' : 'response';
-    String fileName = '$name.dart';
+    String methodName = method.methodName.snakeCase;
+    String type = isRequest ? 'request' : 'response';
+    String part = '${methodName}_$type';
+    String fileName = '$part.dart';
     String requestFilePath = tag != null
-        ? '$_pathModels/$tag/$methodDir'
-        : '$_pathModels/$methodDir';
-    requestFilePath = '$requestFilePath/$name';
+        ? '$_pathModels/$tag/$methodName'
+        : '$_pathModels/$methodName';
+    requestFilePath = '$requestFilePath/$type';
 
     // Создаем директорию, если она не существует
     Directory(requestFilePath).createSync(recursive: true);
@@ -103,7 +104,7 @@ class _Printer {
         fileClasses.writelnIfNotEmpty(u.generateModelDefinition(model));
       }
     }
-    fileImports.writelnIfNotEmpty(u.part(name));
+    fileImports.writelnIfNotEmpty(u.part(part));
     fileImports.writelnIfNotEmpty(fileClasses);
     String requestPath = '$requestFilePath/$fileName';
     File(requestPath).writeAsStringSync(fileImports.toString());

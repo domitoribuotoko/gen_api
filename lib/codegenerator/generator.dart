@@ -15,10 +15,11 @@ class _ModelsGenerator {
 
   GeneratedModels generate() {
     _generateAllMethods();
-    return GeneratedModels(
+    GeneratedModels models = GeneratedModels(
       methods: _generateMethodList,
       models: _generateModelsList,
     );
+    return models;
   }
 
   void _generateAllMethods() {
@@ -34,6 +35,7 @@ class _ModelsGenerator {
     String apiType = apiMethod.value.keys.first;
     YamlMap content = apiMethod.value[apiType];
     YamlList? tags = content[c.ts];
+    String? summary = content[c.sum];
     List<String> tagList =
         tags != null ? tags.map((tag) => tag.toString()).toList() : [];
     // print('METHOD HAS TAG $tagList');
@@ -55,6 +57,7 @@ class _ModelsGenerator {
       tags: tagList,
       apiType: apiType,
       apiPath: apiPath,
+      summary: summary ?? '',
       methodName: methodName,
       request: requestModel,
       response: responseModel,
@@ -75,6 +78,7 @@ class _ModelsGenerator {
       methodName: apiPath != null ? u.apiMethodNameOfPath(apiPath) : '',
       request: EmptyModel(),
       response: EmptyModel(),
+      summary: '',
     );
   }
 
@@ -106,13 +110,12 @@ class _ModelsGenerator {
       String modelName = u.classNameOfPath(path, isResponse: isResponse);
       switch (type) {
         case SchemasType.model:
-          //print('request schema $schema');
           return _getModelFromDeclaration(schema, propModelName: modelName);
         case SchemasType.array:
           //todo array generating
           return _getModelFromDeclaration(schema, propModelName: modelName);
         case SchemasType.field:
-          throw Exception('METHOD CLASS IS FIELD');
+          throw Exception('METHOD CLASS IS FIELD OR REF ON REF');
       }
     } else {
       throw Exception('no contend body for class\nbody: $body');
@@ -146,7 +149,7 @@ class _ModelsGenerator {
     }
   }
 
-  ApiField _getFieldFromDeclaration(MapEntry fieldMap) {
+  ApiField _generateFieldFromDeclaration(MapEntry fieldMap) {
     YamlMap value = fieldMap.value as YamlMap;
     SchemeDeclaration dec = u.getSchemaDeclaration(value);
     switch (dec) {
@@ -253,6 +256,7 @@ class _ModelsGenerator {
     ApiModel model = ApiModel(
       name: modelMap.key,
       fields: fields,
+      description: modelMap.value[c.desc] ?? '',
       superModel: superModel,
       usages: [_currentMethodProcess!.apiPath],
     );
@@ -285,7 +289,7 @@ class _ModelsGenerator {
       case SchemasType.array:
         return _generateFieldFromArray(fieldMap);
       case SchemasType.field:
-        return _getFieldFromDeclaration(fieldMap);
+        return _generateFieldFromDeclaration(fieldMap);
     }
   }
 
@@ -301,10 +305,12 @@ class _ModelsGenerator {
     YamlMap itemScheme = arrayScheme[c.items];
     SchemasType itemType = u.getFieldType(itemScheme, _schemas);
     ApiModel? model;
+    String? desc;
     switch (itemType) {
       case SchemasType.field:
         MapEntry entry = MapEntry('UNKNOWN', itemScheme);
-        ApiField fieldModel = _getFieldFromDeclaration(entry);
+        desc = itemScheme[c.desc];
+        ApiField fieldModel = _generateFieldFromDeclaration(entry);
         type = 'List<${fieldModel.type}>';
       case SchemasType.model:
         String? arrayRef = u.getRefFromMap(fieldMap.value);
@@ -312,12 +318,14 @@ class _ModelsGenerator {
         String className = genArrayModelName(fieldMap.key, arrayRef, itemRef);
         model = _getModelFromDeclaration(itemScheme, propModelName: className);
         type = 'List<${model.name}>';
+        desc = itemScheme[c.desc];
       case SchemasType.array:
         throw Exception('ITEM OF ARRAY IS ARRAY');
     }
     ApiField field = ApiField(
       name: fieldMap.key,
       type: type,
+      description: desc ?? '',
       example: '',
       model: model,
     );
@@ -351,9 +359,11 @@ class _ModelsGenerator {
     YamlMap value = fieldMap.value as YamlMap;
     String? type = value[c.type];
     String? format = value[c.format];
+    String? description = value[c.desc];
     String fieldType = u.generateType(type, format);
     return ApiField(
       name: fieldMap.key,
+      description: description ?? '',
       type: fieldType,
       example: value[c.ex].toString(),
     );
@@ -391,9 +401,11 @@ class _ModelsGenerator {
     ApiModel model =
         _getModelFromDeclaration(mapModel.value, propModelName: mapModel.key);
     // print('GENERATE MODEL FROM PROP $type\n$mapModel ');
+    String? desc = fieldMap.value[c.desc];
     return ApiField(
       name: fieldMap.key,
       type: model.name,
+      description: desc ?? '',
       example: '',
       model: model,
     );

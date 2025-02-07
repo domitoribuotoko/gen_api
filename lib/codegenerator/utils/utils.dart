@@ -10,7 +10,6 @@ import 'package:yaml/yaml.dart';
 typedef u = Utility;
 
 class Utility {
-
   static String packageName() {
     String path = 'pubspec.yaml';
     final file = File(path);
@@ -25,27 +24,18 @@ class Utility {
     SchemeDeclaration dec = getSchemaDeclaration(fieldValue);
     if (dec.isAnyReference) {
       YamlMap schema = getSchemaFromRef(fieldValue, schemas);
-      return _getSchemaType(schema);
+      return _getSchemaType(schema, schemas);
     } else {
-      return _getSchemaType(fieldValue);
+      return _getSchemaType(fieldValue, schemas);
     }
   }
 
-  static YamlMap getSchemaFromRef(YamlMap fieldValue, YamlMap schemas) {
-    String? flatRef = getRefFromMap(fieldValue);
-    if (flatRef == null) {
-      throw Exception('NO FLAT REF');
-    }
-    return schemas[formatReference(flatRef)];
-  }
-
-  static String? getRefFromMap(YamlMap fieldValue) {
-    YamlList? list = fieldValue[c.one] ?? fieldValue[c.all];
-    String? flatRef = fieldValue[c.ref] ?? list?.first[c.ref];
-    return flatRef;
-  }
-
-  static SchemasType _getSchemaType(YamlMap fieldValue) {
+  static SchemasType _getSchemaType(YamlMap fieldValue, YamlMap schemas) {
+    // SchemeDeclaration dec = getSchemaDeclaration(fieldValue);
+    // if (dec.isAnyReference) {
+    //   YamlMap schema = getSchemaFromRef(fieldValue, schemas);
+    //   return _getSchemaType(schema, schemas);
+    // }
     if (fieldValue[c.type] == c.arr) {
       return SchemasType.array;
     }
@@ -70,6 +60,20 @@ class Utility {
     }
 
     return SchemeDeclaration.unknown;
+  }
+
+  static YamlMap getSchemaFromRef(YamlMap fieldValue, YamlMap schemas) {
+    String? flatRef = getRefFromMap(fieldValue);
+    if (flatRef == null) {
+      throw Exception('NO FLAT REF');
+    }
+    return schemas[formatReference(flatRef)];
+  }
+
+  static String? getRefFromMap(YamlMap fieldValue) {
+    YamlList? list = fieldValue[c.one] ?? fieldValue[c.all];
+    String? flatRef = fieldValue[c.ref] ?? list?.first[c.ref];
+    return flatRef;
   }
 
   static String classNameOfField(List<String> affixes) {
@@ -158,6 +162,7 @@ class Utility {
   static StringBuffer _initModel(ApiModel model) {
     StringBuffer modelDefinition = StringBuffer();
     modelDefinition.writelnIfNotEmpty('@JsonSerializable()');
+    _addDescription(model.description, modelDefinition);
     if (model.superModel != null) {
       modelDefinition.writelnIfNotEmpty(
           'class ${model.name} extends ${model.superModel!.name} {');
@@ -199,14 +204,28 @@ class Utility {
   static StringBuffer _modelFields(ApiModel model) {
     StringBuffer buf = StringBuffer();
     for (final field in model.fields) {
+      String description = field.description;
       String originalName = field.name;
       String processedName = processFieldName(originalName);
+      _addDescription(description, buf);
       if (processedName != originalName) {
         buf.writelnIfNotEmpty('  @JsonKey(name: \'$originalName\')');
       }
       buf.writelnIfNotEmpty('  final ${field.type}? $processedName;');
     }
     return buf;
+  }
+
+  static void _addDescription(String desc, StringBuffer buf) {
+    if (desc.isNotEmpty) {
+      List<String> lines = desc.split('\n');
+      for (String line in lines) {
+        String trimmedLine = line.trim();
+        if (trimmedLine.isNotEmpty) {
+          buf.writeln('  /// $trimmedLine');
+        }
+      }
+    }
   }
 
   static StringBuffer _modelConstructor(ApiModel model) {
@@ -264,6 +283,7 @@ class Utility {
     buffer.writelnIfNotEmpty('  @$httpMethod(\'$apiPath\')');
 
     // Записываем сигнатуру метода
+    u._addDescription(method.summary, buffer);
     buffer.write('  Future<$returnType> ${method.methodName}(');
     if (!method.request.isEmpty) {
       buffer.writeln();
@@ -349,7 +369,6 @@ class Utility {
   static String part(String of) {
     return "\npart '$of.g.dart';";
   }
-
 }
 
 extension FindMapExtension on Iterable<MapEntry> {

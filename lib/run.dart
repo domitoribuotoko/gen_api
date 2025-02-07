@@ -48,8 +48,8 @@ void _maybeRunBuilder({bool inputIsBuild = false}) {
   YamlMap? genYamlConfig = pubspec['gen_yaml'];
   bool? paramIsBuild = genYamlConfig?['isRunBuilder'] as bool?;
   bool isParamSet = paramIsBuild != null;
-  bool isBuild =
-      (inputIsBuild && isParamSet && paramIsBuild) || (paramIsBuild == true);
+  bool isBuild = (paramIsBuild == true) || (inputIsBuild && !isParamSet);
+  print('Is need build .g.dart files: $isBuild\ninputIsBuild: $inputIsBuild\nisParamSet: $isParamSet\nparamIsBuild: $paramIsBuild');
   if (isBuild) {
     Process.run('dart', ['run', 'build_runner', 'build', '-d']);
   }

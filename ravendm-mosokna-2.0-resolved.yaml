@@ -1,0 +1,1776 @@
+openapi: 3.0.0
+info:
+  title: mosokna
+  description: Документация приложения Мосокна
+  version: "2.0"
+servers:
+  - url: http://localhost:3000
+security:
+  - AuthHeader: []
+tags:
+  - name: auth
+    description: "Методы, работающие без авторизации"
+  - name: user
+    description: "Методы, отностящиеся к ЛК"
+  - name: request
+    description: Методы для работы с заявками
+  - name: logger
+    description: Методы работы с логом событий
+paths:
+  /auth/token:
+    post:
+      tags:
+        - auth
+      summary: Обновление токена авторизации
+      operationId: token
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefreshTokenRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshTokenResponse'
+        "401":
+          description: Unauthorized
+      security:
+        - AuthHeader: []
+  /auth/login:
+    post:
+      tags:
+        - auth
+      summary: Авторизация
+      operationId: auth
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/AuthPhoneRequest'
+                - $ref: '#/components/schemas/AuthCodeRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/TransactionResponse'
+                  - $ref: '#/components/schemas/NewUserResponse'
+                  - $ref: '#/components/schemas/RefreshTokenResponse'
+        "401":
+          description: Unauthorized
+      security:
+        - AuthHeader: []
+  /auth/register:
+    post:
+      tags:
+        - auth
+      summary: Регистрация пользователя
+      operationId: register
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/auth_register_body'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RefreshTokenResponse'
+        "401":
+          description: Unauthorized
+      security:
+        - AuthHeader: []
+  /user/status:
+    post:
+      tags:
+        - user
+      summary: "Пользователь: Проверка статуса"
+      description: Вызывается при каждом запуске приложения для получения актуального статуса аккаунта пользователя
+      operationId: userStatus
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BaseRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserStatusResponse'
+        "401":
+          description: Unauthorized
+      security:
+        - AuthHeader: []
+  /user/info:
+    post:
+      tags:
+        - user
+      summary: "Пользователь: Получить данные"
+      operationId: userInfo
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BaseRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserResponse'
+        "401":
+          description: Unauthorized
+      security:
+        - AuthHeader: []
+  /user/photo:
+    post:
+      tags:
+        - user
+      summary: "Пользователь: Изменить фото"
+      operationId: changePhoto
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/user_photo_body'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Unauthorized
+      security:
+        - AuthHeader: []
+  /user/notifications:
+    post:
+      tags:
+        - user
+      summary: "Пользователь: Уведомления"
+      operationId: userNotifications
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserNotificationsRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserNotificationResponse'
+        "401":
+          description: Unauthorized
+      security:
+        - AuthHeader: []
+  /user/calendar:
+    post:
+      tags:
+        - user
+      summary: "Календарь: получение дат"
+      description: нужен ли фильтр по месяцу (?)
+      operationId: calendar
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BaseRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserCalendarResponse'
+        "401":
+          description: Unauthorized
+      security:
+        - AuthHeader: []
+  /user/editCalendar:
+    post:
+      tags:
+        - user
+      summary: "Календарь: обновление дат"
+      operationId: editCalendar
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserEditCalendarRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Unauthorized
+      security:
+        - AuthHeader: []
+  /user/operations:
+    post:
+      tags:
+        - user
+      summary: "Пользователь: История операций"
+      operationId: userOperations
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserOperationRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UserOperationResponse'
+        "401":
+          description: Unauthorized
+      security:
+        - AuthHeader: []
+  /request/list:
+    post:
+      tags:
+        - request
+      summary: Список заявок
+      operationId: requestList
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BaseRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestsListResponse'
+        "401":
+          description: Unauthorized
+      security:
+        - AuthHeader: []
+  /request/details:
+    post:
+      tags:
+        - request
+      summary: "Заявка: детали"
+      operationId: requestDetails
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/RequestDetailsResponse'
+        "401":
+          description: Unauthorized
+      security:
+        - AuthHeader: []
+  /request/changeStatus:
+    post:
+      tags:
+        - request
+      summary: "Заявка: смена статуса"
+      operationId: requestChangeStatus
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeStatusRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Unauthorized
+      security:
+        - AuthHeader: []
+  /request/cancel:
+    post:
+      tags:
+        - request
+      summary: "Заявка: Отказ"
+      operationId: requestCancel
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestCancelRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Unauthorized
+      security:
+        - AuthHeader: []
+  /request/late:
+    post:
+      tags:
+        - request
+      summary: "Заявка: Опаздываю"
+      operationId: requestLate
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LateRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Unauthorized
+      security:
+        - AuthHeader: []
+  /request/problem:
+    post:
+      tags:
+        - request
+      summary: "Заявка: Проблема"
+      operationId: requestProblem
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ProblemRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Unauthorized
+      security:
+        - AuthHeader: []
+  /request/signManual:
+    post:
+      tags:
+        - request
+      summary: "Заявка: Подпись ручная"
+      operationId: requestSignManual
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/request_signManual_body'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Unauthorized
+      security:
+        - AuthHeader: []
+  /request/signSms:
+    post:
+      tags:
+        - request
+      summary: "Заявка: Подпись через смс"
+      description: |
+        * Первый этап - номер телефона * Второй этап - остальные поля
+      operationId: requestSignSms
+      requestBody:
+        content:
+          application/json:
+            schema:
+              oneOf:
+                - $ref: '#/components/schemas/SignSmsPhoneRequest'
+                - $ref: '#/components/schemas/SignSmsCodeRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/TransactionResponse'
+        "401":
+          description: Unauthorized
+      security:
+        - AuthHeader: []
+  /request/uploadPhoto:
+    post:
+      tags:
+        - request
+      summary: "Заявка: Выгрузить фото"
+      operationId: uploadPhoto
+      requestBody:
+        content:
+          multipart/form-data:
+            schema:
+              $ref: '#/components/schemas/request_uploadPhoto_body'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                oneOf:
+                  - $ref: '#/components/schemas/SuccessResponse'
+                  - $ref: '#/components/schemas/ErrorResponse'
+        "401":
+          description: Unauthorized
+      security:
+        - AuthHeader: []
+  /request/mountingInfo:
+    post:
+      tags:
+        - request
+      summary: "Заявка: Запрос доп. документов"
+      description: |
+        Замерный лист и Комплектация приходят в виде эл. письма на Email, указанный в профиле   Регламент открывается в браузере сразу
+      operationId: mountingInfo
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/MountingInfoRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UrlResponse'
+        "401":
+          description: Unaithorized
+      security:
+        - AuthHeader: []
+  /request/qrCode:
+    post:
+      tags:
+        - request
+      summary: "Заявка: QR-код для оплаты"
+      description: |
+        Запрос ссылки на QR-код для оплаты.   QR код отображается в виде картинки на отдельном экране.
+      operationId: qrCode
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UrlResponse'
+        "401":
+          description: Unaithorized
+      security:
+        - AuthHeader: []
+  /logger/write:
+    post:
+      tags:
+        - logger
+      summary: Выгрузка лога действий пользователя в приложении
+      description: |
+        Через данный метод будет выгружаться список действий пользователя в приложении. Это бывает полезно для разрешения спорных ситуаций.
+      operationId: logger
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/LoggerRequest'
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        "401":
+          description: Unaithorized
+      security:
+        - AuthHeader: []
+components:
+  schemas:
+    SuccessResponse:
+      required:
+        - errorCode
+      type: object
+      properties:
+        errorCode:
+          type: integer
+          description: Признак успеха операции
+          default: 0
+    ErrorResponse:
+      required:
+        - errorCode
+      type: object
+      properties:
+        errorCode:
+          type: integer
+          description: Код ошибки
+          example: 100
+        errorText:
+          type: string
+          description: Текст описания ошибки (для показа в приложении)
+          example: Неверный формат номера телефона
+    RefreshTokenRequest:
+      required:
+        - refreshToken
+        - sessionToken
+      type: object
+      properties:
+        sessionToken:
+          type: string
+          description: Токен пользователя
+          format: uuid
+          example: 10000000-0000-0000-0000-000000000000
+        refreshToken:
+          type: string
+          description: Токен восстановления
+          format: uuid
+          example: 20000000-0000-0000-0000-000000000000
+      description: Обновление токена авторизации
+    RefreshTokenResponse:
+      required:
+        - errorCode
+      type: object
+      properties:
+        errorCode:
+          type: integer
+          description: Код ошибки
+          example: 0
+        errorText:
+          type: string
+          description: Описание ошибки
+          example: ""
+        result:
+          $ref: '#/components/schemas/TokensInfo'
+      description: Обновление токена авторизации
+    AuthPhoneRequest:
+      required:
+        - hash
+        - mode
+        - phone
+      type: object
+      properties:
+        mode:
+          type: string
+          description: Режим работы - телефон
+          default: phone
+        phone:
+          type: string
+          description: Номер телефона пользователя
+          format: string(12)
+          example: "791112223344"
+        hash:
+          type: string
+          description: |
+            Контрольная хеш-сумма. Служит в качестве дополнительного слоя защиты,  т.к. метод работает без авторизации. Считается по алгоритму:
+              * hash = MD5({phone}+{salt}), где
+              * {phone} - значения паля 'phone'
+              * {salt} - фиксированная фраза: u2yRR?z[2L
+            При получении запроса, сервер должен проверить наличие хеша,  а также совпадение переданного хеша с аналогичным хешем, рассчитанным на основе  полей запроса.  Если они совпали - считаем запрос корректным и обрабатываем. Если нет - считаем запрос некорректным.
+          example: cb2ea4319eb862b906465355bddbb3a4
+      description: "Авторизация, 1я стадия"
+    TransactionResponse:
+      required:
+        - errorCode
+      type: object
+      properties:
+        errorCode:
+          type: integer
+          description: Код ошибки
+          example: 0
+        errorText:
+          type: string
+          description: Описание ошибки
+          example: ""
+        transactionId:
+          type: string
+          description: Id транзакции (для передачи на 2м этапе)
+          format: uuid
+          example: 00000000-0000-0000-0000-000000000000
+      description: "Авторизация, 1я стадия. Уже существующий пользователь"
+    NewUserResponse:
+      required:
+        - errorCode
+      type: object
+      properties:
+        errorCode:
+          type: integer
+          description: Код ошибки
+          example: 0
+        errorText:
+          type: string
+          description: Описание ошибки
+          example: ""
+        fillProfile:
+          type: boolean
+          description: Признак необходимости заполнить профиль (регистрации)
+          default: true
+      description: "Авторизация, 2я стадия. Новый пользователь"
+    AuthCodeRequest:
+      required:
+        - code
+        - hash
+        - mode
+        - transactionId
+      type: object
+      properties:
+        mode:
+          type: string
+          description: Режим работы - код подтверждения
+          default: code
+        transactionId:
+          type: string
+          description: ID транзакции с 1го этапа авторизации
+          format: uuid
+          example: 00000000-0000-0000-0000-000000000000
+        code:
+          type: string
+          description: Код подтверждения
+          format: string
+          example: "12345"
+        hash:
+          type: string
+          description: "Контрольная хеш-сумма. Служит в качестве дополнительного слоя защиты,  т.к. метод работает без авторизации. Считается по алгоритму:\n  - **hash** = MD5(**{transactionId}**+**{code}**+**{salt}**), где\n  - **{transactionId}** - значения паля 'transactionId'\n  - **{code}** - значение поля 'code'\n  - **{salt}** - фиксированная фраза: u2yRR?z[2L\n  \nПри получении запроса, сервер должен проверить наличие хеша,  а также совпадение переданного хеша с аналогичным хешем, рассчитанным на основе  полей запроса.   Если они совпали - считаем запрос корректным и обрабатываем. Если нет - считаем запрос некорректным.              \n"
+          example: c858d75a9310a4745b03233dc5ada4f0
+      description: "Авторизации, 2я стадия"
+    RegisterRequest:
+      required:
+        - accountNum
+        - address
+        - city
+        - divisionCode
+        - email
+        - fio
+        - inn
+        - passportNum
+        - passportSeries
+        - phone
+        - snils
+        - transactionId
+        - userType
+      type: object
+      properties:
+        transactionId:
+          type: string
+          description: ID транзакции с 1го этапа авторизации
+          format: uuid
+          example: 00000000-0000-0000-0000-000000000000
+        phone:
+          type: string
+          description: Номер телефона пользователя
+          example: +7 (900) 000-00-00
+        userType:
+          type: string
+          description: |
+            Тип пользователя:
+              - **ip** - ИП
+              - **self** - Самозанятый
+          example: ip
+          enum:
+            - ip
+            - self
+        fio:
+          type: string
+          description: ФИО
+          example: Иванов Иван Иванович
+        email:
+          type: string
+          description: E-mail
+          example: email@mail.com
+        city:
+          type: string
+          description: Город
+          example: Саратов
+        inn:
+          pattern: "^\\d{10}$"
+          type: string
+          description: ИНН
+          example: "1234567890"
+        snils:
+          pattern: "^\\d{11}$"
+          type: string
+          description: СНИЛС (для самозанытых)
+          example: "12345678901"
+        ogrnip:
+          pattern: "^\\d{15}$"
+          type: string
+          description: ОГРНИП (для ИП)
+          example: "123456789012345"
+        accountNum:
+          type: string
+          description: Реквизиты счета
+        passportSeries:
+          pattern: "^\\d{4}$"
+          type: string
+          description: Серия паспорта
+          example: "1234"
+        passportNum:
+          pattern: "^\\d{6}$"
+          type: string
+          description: Номер паспорта
+          example: "123456"
+        divisionCode:
+          pattern: "^\\d{6}$"
+          type: string
+          description: Код выдавшего подразделения для паспорта
+          example: "123456"
+        address:
+          type: string
+          description: Адрес проживания
+          example: "ул. Университетская, д. 1, кв. 2"
+      description: "Регистрация, данные пользователя"
+    BaseRequest:
+      type: object
+      properties:
+        sessionToken:
+          type: string
+          description: Токен пользователя
+          format: uuid
+          example: 10000000-0000-0000-0000-000000000000
+      description: Базовый запрос (с токеном авторизации)
+    UserStatusResponse:
+      required:
+        - errorCode
+      type: object
+      properties:
+        errorCode:
+          type: integer
+          description: Код ошибки
+          example: 0
+        errorText:
+          type: string
+          description: Описание ошибки
+          example: ""
+        result:
+          $ref: '#/components/schemas/UserStatus'
+      description: Статус пользователя
+    UserEditRequest:
+      required:
+        - email
+        - fio
+        - phone
+        - sessionToken
+        - specialization
+      type: object
+      properties:
+        sessionToken:
+          type: string
+          description: Токен пользователя
+          format: uuid
+          example: 10000000-0000-0000-0000-000000000000
+        fio:
+          type: string
+          description: ФИО
+          example: Иванов Иван Иванович
+        specialization:
+          type: string
+          description: Специализация
+          example: Монтажник
+        phone:
+          type: string
+          description: Телефон
+          example: "79112223344"
+        email:
+          type: string
+          description: E-mail
+      description: Редактирование данных пользователя
+    UserResponse:
+      required:
+        - errorCode
+      type: object
+      properties:
+        errorCode:
+          type: integer
+          description: Код ошибки
+          example: 0
+        errorText:
+          type: string
+          description: Описание ошибки
+          example: ""
+        result:
+          $ref: '#/components/schemas/User'
+      description: Данные пользователя
+    UserEditCalendarRequest:
+      required:
+        - items
+        - sessionToken
+      type: object
+      properties:
+        sessionToken:
+          type: string
+          description: Токен пользователя
+          format: uuid
+          example: 10000000-0000-0000-0000-000000000000
+        items:
+          type: array
+          items:
+            $ref: '#/components/schemas/CalendarItem'
+      description: Обновление данных календаря
+    UserCalendarResponse:
+      required:
+        - errorCode
+      type: object
+      properties:
+        errorCode:
+          type: integer
+          description: Код ошибки
+          example: 0
+        errorText:
+          type: string
+          description: Описание ошибки
+          example: ""
+        result:
+          type: array
+          items:
+            $ref: '#/components/schemas/CalendarItem'
+      description: Данные календаря
+    UserNotificationsRequest:
+      type: object
+      properties:
+        sessionToken:
+          type: string
+          description: Токен пользователя
+          format: uuid
+          example: 10000000-0000-0000-0000-000000000000
+        fromId:
+          type: string
+          description: "Id операции, начиная с которой нужно делать выборку.   Используется для пагинации          \n"
+          example: ""
+    UserNotificationResponse:
+      type: object
+      properties:
+        errorCode:
+          type: integer
+          description: Код ошибки
+          example: 0
+        errorText:
+          type: string
+          description: Описание ошибки
+          example: ""
+        result:
+          type: array
+          items:
+            $ref: '#/components/schemas/Notification'
+      description: Уведомления
+    UserOperationRequest:
+      type: object
+      properties:
+        sessionToken:
+          type: string
+          description: Токен пользователя
+          format: uuid
+          example: 10000000-0000-0000-0000-000000000000
+        fromDate:
+          type: string
+          description: "Id операции, начиная с которой нужно делать выборку.   Используется для пагинации          \n"
+          format: datetime
+          example: 31.12.2000 23:59
+      description: История операций
+    UserOperationResponse:
+      type: object
+      properties:
+        errorCode:
+          type: integer
+          description: Код ошибки
+          example: 0
+        errorText:
+          type: string
+          description: Описание ошибки
+          example: ""
+        result:
+          type: array
+          items:
+            $ref: '#/components/schemas/Operation'
+      description: Операции
+    RequestRequest:
+      required:
+        - sessionToken
+        - workOrderId
+      type: object
+      properties:
+        sessionToken:
+          type: string
+          description: Токен пользователя
+          format: uuid
+          example: 10000000-0000-0000-0000-000000000000
+        workOrderId:
+          type: string
+          description: Id заявки
+          example: "12345"
+      description: Запрос данных для заявки
+    RequestsListResponse:
+      required:
+        - errorCode
+      type: object
+      properties:
+        errorCode:
+          type: integer
+          description: Код ошибки
+          example: 0
+        errorText:
+          type: string
+          description: Описание ошибки
+          example: ""
+        result:
+          type: array
+          items:
+            $ref: '#/components/schemas/RequestDetails'
+      description: Список заявок
+    RequestDetailsResponse:
+      required:
+        - errorCode
+      type: object
+      properties:
+        errorCode:
+          type: integer
+          description: Код ошибки
+          example: 0
+        errorText:
+          type: string
+          description: Описание ошибки
+          example: ""
+        result:
+          $ref: '#/components/schemas/RequestDetails'
+      description: Детали одной заявки
+    ChangeStatusRequest:
+      required:
+        - dateTime
+        - sessionToken
+        - status
+        - workOrderId
+      type: object
+      properties:
+        sessionToken:
+          type: string
+          description: Токен пользователя
+          format: uuid
+          example: 10000000-0000-0000-0000-000000000000
+        workOrderId:
+          type: string
+          description: Id заявки
+          example: "12345"
+        status:
+          type: string
+          description: |
+            Смена статуса заявки:
+              - **start** - Начать
+              - **pause** - Приостановать
+              - **resume** - Возобновить
+              - **close** - Закрыть
+              - **finish** - Завершить
+          example: start
+          enum:
+            - start
+            - pause
+            - resume
+            - close
+            - finish
+        dateTime:
+          type: string
+          description: |
+            Дата-время запроса (нажатия кнопки). Чтобы не потерялось при отложенной отправке
+          format: datetime
+          example: 31.12.2000 23:59
+      description: Смена статуса заявки
+    RequestCancelRequest:
+      required:
+        - causeId
+        - dateTime
+        - sessionToken
+        - workOrderId
+      type: object
+      properties:
+        sessionToken:
+          type: string
+          description: Токен пользователя
+          format: uuid
+          example: 10000000-0000-0000-0000-000000000000
+        workOrderId:
+          type: string
+          description: Id заявки
+          example: "12345"
+        dateTime:
+          type: string
+          description: |
+            Дата-время запроса (нажатия кнопки). Чтобы не потерялось при отложенной отправке
+          format: datetime
+          example: 31.12.2000 23:59
+        causeId:
+          type: string
+          description: |
+            Тип причины:
+              - **car** - поломка машины
+              - **ill** - болезнь
+              - **incomplete** - незавершенность работ
+              - **other** - другое
+          example: other
+          enum:
+            - car
+            - ill
+            - incomplete
+            - other
+        comment:
+          type: string
+          description: Причина - комментарий
+          example: Комментарий
+      description: Отказ от заявки
+    LateRequest:
+      required:
+        - causeId
+        - dateTime
+        - sessionToken
+        - workOrderId
+      type: object
+      properties:
+        sessionToken:
+          type: string
+          description: Токен пользователя
+          format: uuid
+          example: 10000000-0000-0000-0000-000000000000
+        workOrderId:
+          type: string
+          description: Id заявки
+          example: "12345"
+        dateTime:
+          type: string
+          description: |
+            Дата-время запроса (нажатия кнопки). Чтобы не потерялось при отложенной отправке
+          format: datetime
+          example: 31.12.2000 23:59
+        causeId:
+          type: string
+          description: |
+            Тип причины:
+              - **prevWork** - задержка на предыдущем обьекте
+              - **road** - задержка в дороге
+              - **other** - другое
+          example: other
+          enum:
+            - prevWork
+            - road
+            - other
+        comment:
+          type: string
+          description: Причина - комментарий
+          example: Комментарий
+      description: Опаздание по заявке
+    ProblemRequest:
+      required:
+        - dateTime
+        - problemId
+        - problemTypeId
+        - sessionToken
+        - workOrderId
+      type: object
+      properties:
+        sessionToken:
+          type: string
+          description: Токен пользователя
+          format: uuid
+          example: 10000000-0000-0000-0000-000000000000
+        workOrderId:
+          type: string
+          description: Id заявки
+          example: "12345"
+        problemId:
+          type: string
+          description: Уникальный ID проблемы (для привязки фотографий)
+          format: uuid
+          example: 20000000-0000-0000-0000-000000000000
+        dateTime:
+          type: string
+          description: |
+            Дата-время запроса (нажатия кнопки). Чтобы не потерялось при отложенной отправке
+          format: datetime
+          example: 31.12.2000 23:59
+        problemTypeId:
+          type: string
+          description: |
+            Тип проблемы:
+              - **cantMount** - Невозможность установки изделия/изделий
+              - **defectrivePart** - Наличие брака в изделии/изделиях
+              - **missingPart** - Отсутствие изделия/изделий
+              - **noTimeToFinish** - Непредвиденная задержка на объекте
+          example: cantMount
+          enum:
+            - cantMount
+            - defectrivePart
+            - missingPart
+            - noTimeToFinish
+        comment:
+          type: string
+          description: Комментарий к проблеме
+          example: ""
+    SignManualRequest:
+      required:
+        - actTypeId
+        - dateTime
+        - sessionToken
+        - workOrderId
+      type: object
+      properties:
+        sessionToken:
+          type: string
+          description: Токен пользователя
+          format: uuid
+          example: 10000000-0000-0000-0000-000000000000
+        workOrderId:
+          type: string
+          description: Id заявки
+          example: "12345"
+        actTypeId:
+          type: string
+          description: |
+            Тип акта:
+              - **accept** - Акт сдачи без замечаний
+              - **acceptWComments** - Акт сдачи с замечанием
+              - **cantStart** - Акт о невозможности начала работ
+              - **cantContinue** - Акт о невозможности продолжения работ
+              - **cantFinish** - Акт о невозможности сдачи работ
+          example: accept
+          enum:
+            - accept
+            - acceptWComments
+            - cantStart
+            - cantContinue
+            - cantFinish
+        comments:
+          type: string
+          description: Замечания
+          example: ""
+        dateTime:
+          type: string
+          description: |
+            Дата-время получения подписи. Чтобы не потерялось при отложенной отправке
+          format: datetime
+          example: 31.12.2000 23:59
+      description: Подпись ручная
+    SignSmsPhoneRequest:
+      required:
+        - mode
+        - phone
+        - sessionToken
+        - workOrderId
+      type: object
+      properties:
+        sessionToken:
+          type: string
+          description: Токен пользователя
+          format: uuid
+          example: 10000000-0000-0000-0000-000000000000
+        workOrderId:
+          type: string
+          description: Id заявки
+          example: "12345"
+        mode:
+          type: string
+          description: Режим работы - телефон
+          default: phone
+        phone:
+          type: string
+          description: Номер телефона
+          example: "79112223344"
+      description: "Подпись с помощью смс, 1й этап"
+    SignSmsCodeRequest:
+      required:
+        - actTypeId
+        - mode
+        - sessionToken
+        - smsCode
+        - transactionId
+        - workOrderId
+      type: object
+      properties:
+        sessionToken:
+          type: string
+          description: Токен пользователя
+          format: uuid
+          example: 10000000-0000-0000-0000-000000000000
+        workOrderId:
+          type: string
+          description: Id заявки
+          example: "12345"
+        mode:
+          type: string
+          description: Режим работы - код подтверждения
+          default: code
+        transactionId:
+          type: string
+          description: "ID транзакции, полученный на 1м этапе"
+          example: "123456"
+        smsCode:
+          type: string
+          description: Код подтверждения
+          example: "123456"
+        actTypeId:
+          type: string
+          description: |
+            Тип акта:
+              - **accept** - Акт сдачи без замечаний
+              - **acceptWComments** - Акт сдачи с замечанием
+              - **cantStart** - Ак о невозможности начала работ
+              - **cantContinue** - Ак о невозможности продолжения работ
+              - **cantFinish** - Ак о невозможности сдачи работ
+          example: accept
+          enum:
+            - accept
+            - acceptWComments
+            - cantStart
+            - cantContinue
+            - cantFinish
+        comments:
+          type: string
+          description: Замечания
+          example: ""
+      description: "Подпись с помощью смс, 2й этап"
+    UploadPhotoRequest:
+      required:
+        - photoTypeId
+        - sessionToken
+        - workOrderId
+      type: object
+      properties:
+        sessionToken:
+          type: string
+          description: Токен пользователя
+          format: uuid
+          example: 10000000-0000-0000-0000-000000000000
+        workOrderId:
+          type: string
+          description: Id заявки
+          example: "12345"
+        photoTypeId:
+          type: string
+          description: |
+            Тип фотографии:
+              - **request** - фотоотчет (нет доп. параметров)
+              - **taskItem** - пункт обьема работ (должен быть указан taskItemId)
+              - **problem** - проблема (должен быть указан problemId)
+          example: request
+          enum:
+            - request
+            - taskItem
+            - problem
+        imageId:
+          type: string
+          description: Уникальный ID картинки
+          format: uuid
+        taskItemId:
+          type: string
+          description: Id пункта обьема работ
+          example: ""
+        problemId:
+          type: string
+          description: Id проблемы
+          example: ""
+      description: Информация о выгружаемой фотографии
+    MountingInfoRequest:
+      type: object
+      properties:
+        sessionToken:
+          type: string
+          description: Токен пользователя
+          format: uuid
+          example: 10000000-0000-0000-0000-000000000000
+        workOrderId:
+          type: string
+          description: Id заявки
+          example: "12345"
+        typeId:
+          type: string
+          description: "Тип запрашиваемой информации:\n  - **measureSheet** - замерный лист\n  - **orderConfig** - комплектация заказа\n  - **spec** - регламент монтажа            \n"
+          enum:
+            - measureSheet
+            - orderConfig
+            - spec
+      description: Получение доп. данных о заявке
+    UrlResponse:
+      required:
+        - errorCode
+      type: object
+      properties:
+        errorCode:
+          type: integer
+          description: Код ошибки
+          example: 0
+        errorText:
+          type: string
+          description: Описание ошибки
+          example: ""
+        result:
+          $ref: '#/components/schemas/UrlResponse_result'
+      description: Доп. данные для заявки
+    LoggerRequest:
+      required:
+        - logs
+        - sessionToken
+      type: object
+      properties:
+        sessionToken:
+          type: string
+          description: Токен пользователя
+          format: uuid
+          example: 10000000-0000-0000-0000-000000000000
+        logs:
+          type: string
+          description: |
+            Лог событий пользователя в построчном виде: date|sessionId|message
+          example: |
+            30-08-2022T10:05:19+0300|sessionId|текст события1 30-08-2022T10:06:19+0300|sessionId|текст события2 30-08-2022T10:07:19+0300|sessionId|текст события3
+      description: Выгрузка лога действий пользователя в приложении
+    TokensInfo:
+      type: object
+      properties:
+        sessionToken:
+          type: string
+          description: Токен пользователя
+          format: uuid
+          example: 10000000-0000-0000-0000-000000000000
+        refreshToken:
+          type: string
+          description: Токен восстановления
+          format: uuid
+          example: 20000000-0000-0000-0000-000000000000
+      description: Токены авторизации
+    UserStatus:
+      type: object
+      properties:
+        isBlocked:
+          type: boolean
+          description: |
+            Признак блокировки аккаунта пользователя:
+              - false - аккаунт не заблокирован
+              - true - аккаунт заблокирован/удален, нужно обратиться в тех. поддержку для восстановления доступа
+        isValidated:
+          type: boolean
+          description: "Признак прохождения ручной проверки данных после регистрации:\n  - false - аккаунт ожидает проверки, функционал ограничен \n  - true - аккаунт проверен и полностью активен\n"
+        isCalendarFilled:
+          type: boolean
+          description: |
+            Признак заполнения календаря:
+              - false - для начала работы нужно заполнить календарь
+              - true - календарь заполнен, можно работать
+        comment:
+          type: string
+          description: |
+            Примечание к статусу пользоваля,  отображается в UI приложения
+      description: Данные о статусе пользователя
+    User:
+      required:
+        - email
+        - fio
+        - phone
+        - photoUrl
+        - specialization
+      type: object
+      properties:
+        fio:
+          type: string
+          description: ФИО
+          example: Иванов Иван Иванович
+        photoUrl:
+          type: string
+          description: Url фото
+          example: https://ya.ru/test.png
+        specialization:
+          type: string
+          description: Специализация
+          example: Монтажник
+        phone:
+          type: string
+          description: Телефон
+          example: "79112223344"
+        email:
+          type: string
+          description: E-mail
+          example: mail@gmail.com
+      description: Данные пользователя
+    Notification:
+      required:
+        - id
+        - message
+        - type
+      type: object
+      properties:
+        id:
+          type: string
+          example: "12345"
+        type:
+          type: string
+          description: "Тип уведомления\n  - **normal** - обычное \n  - **important** - важное (красное)\n  - **info** - информация (зеленое)\n"
+          example: normal
+          enum:
+            - normal
+            - important
+            - info
+        message:
+          type: string
+          description: Текст уведомления
+          example: Ваш отчет принят
+        workOrderId:
+          type: string
+          description: Id заявки (если уведомление относится к ней)
+          example: "12345"
+      description: Уведомление
+    CalendarItem:
+      required:
+        - date
+      type: object
+      properties:
+        date:
+          type: string
+          description: Дата
+          format: datetime
+          example: 31.12.2000 23:59
+      description: Элемент календаря
+    Operation:
+      required:
+        - date
+        - description
+        - id
+        - title
+        - type
+        - value
+      type: object
+      properties:
+        id:
+          type: string
+          description: Уникальный Id операции
+          format: uuid
+          example: 10000000-0000-0000-0000-000000000000
+        workOrderId:
+          type: string
+          description: Id заявки
+          example: "12345"
+        date:
+          type: string
+          description: Дата операции
+          format: datetime
+          example: 31.12.2000 23:59
+        type:
+          type: string
+          description: |
+            Тип операции:
+              - **income** - поступление
+              - **outcome** - списание
+          example: income
+          enum:
+            - income
+            - outcome
+        title:
+          type: string
+          description: Название
+          example: 'Зачисление средств '
+        description:
+          type: string
+          description: Описание
+          example: за Наряд № 1455610
+        value:
+          type: integer
+          description: Сумма
+          example: 15000
+      description: Элемент истории операций
+    RequestDetails:
+      required:
+        - address
+        - clientComment
+        - clientName
+        - clientPhones
+        - coordinatorPhone
+        - createdDate
+        - expectedStartDate
+        - finishDate
+        - jobDuration
+        - jobPrice
+        - location
+        - minPhotosCount
+        - minSignCount
+        - orderId
+        - sellarName
+        - startDate
+        - status
+        - taskList
+        - timeSpent
+        - trademarkId
+        - trademarkName
+        - workNumber
+        - workOrderId
+        - workOrderNumber
+      type: object
+      properties:
+        workOrderId:
+          type: string
+          description: Уникальный Id задания (для передачи в АПИ)
+          example: "12345"
+        createdDate:
+          type: string
+          description: Дата создания заявки
+          format: datetime
+          example: 01.01.2020 12:00
+        expectedStartDate:
+          type: string
+          description: "Дата и время, к которому нужно приступить к работе"
+          format: datetime
+          example: 01.02.2020 12:00
+        startDate:
+          type: string
+          description: Дата и время фактического начала работы
+          example: 01.02.2020 13:00
+        finishDate:
+          type: string
+          description: Дата завершения работы
+          format: datetime
+          example: ""
+        workOrderNumber:
+          type: string
+          description: Номер задания (для отображения в UI)
+          example: "200"
+        orderNumber:
+          type: string
+          description: Номер заказа (в который входит текущее задание)
+          example: "1234567"
+        address:
+          type: string
+          description: Адрес
+          example: "Университетская, д. 1, кв. 2"
+        location:
+          $ref: '#/components/schemas/LocationInfo'
+        status:
+          type: string
+          description: |
+            Статус заявки:
+              - **new** - Новая
+              - **process** - В работе
+              - **pause** - На паузе
+              - **finished** - Завершена
+              - **verification** - На поверке
+              - **payout** - Выплата
+              - **paid** - Оплачено
+              - **cancel** - Отмена оператором
+          example: new
+          enum:
+            - new
+            - process
+            - pause
+            - finished
+            - verification
+            - payout
+            - paid
+            - cancel
+        timeSpent:
+          type: integer
+          description: Потраченное время (мин)
+          example: 100
+        clientComment:
+          type: string
+          description: Комментарии
+          example: Обратить особое внимание на откосы
+        clientName:
+          type: string
+          description: ФИО клиента
+          example: Иванов Иван Иванович
+        clientPhones:
+          type: array
+          description: Телефоны клиента
+          items:
+            type: string
+            description: Телефон
+            example: "79112223344"
+        coordinatorPhone:
+          type: string
+          description: Телефон координатора
+          example: "79112223344"
+        taskList:
+          type: array
+          description: Список задач
+          items:
+            $ref: '#/components/schemas/RequestTaskItem'
+        jobPrice:
+          $ref: '#/components/schemas/JobPriceInfo'
+        jobDuration:
+          type: string
+          description: Длительность работ
+          example: 3ч
+        minPhotosCount:
+          type: integer
+          description: Минимальное количество фотоочетов
+          example: 5
+        minSignCount:
+          type: integer
+          description: |
+            Признак необходимости получить подпись заказчика: 0 - подпись уже получена 1 - подпись еще не получена
+          example: 1
+        trademarkName:
+          type: string
+          description: Наименование ТМ задания
+          example: Rehau
+        trademarkId:
+          type: string
+          description: Id ТМ задания для внутреннего пользования
+          example: "100"
+        sellarName:
+          type: string
+          description: Наименование продавца изделий в задании
+          example: тд Дом
+    RequestTaskItem:
+      required:
+        - description
+        - hasPhoto
+        - id
+      type: object
+      properties:
+        id:
+          type: string
+          description: Id пункта объёма работ
+          format: uuid
+          example: 10000000-0000-0000-0000-000000000000
+        description:
+          type: string
+          description: Текст описания
+          example: Сборка и монтаж изделий
+        hasPhoto:
+          type: boolean
+          description: Загружено ли фото (???)
+          example: false
+      description: Пункт объёма работ
+    LocationInfo:
+      required:
+        - lat
+        - lng
+      type: object
+      properties:
+        lat:
+          type: number
+          description: Latitude (1я геокоордината адреса)
+          example: 51.5
+        lng:
+          type: number
+          description: Longitude (2я геокоордината адреса)
+          example: 45.99
+      description: Геокоординаты адреса
+    JobPriceInfo:
+      required:
+        - selfEmployed
+        - staffMember
+      type: object
+      properties:
+        selfEmployed:
+          type: integer
+          description: Для самозанятых
+          example: 10000
+        staffMember:
+          type: integer
+          description: Для штатных
+          example: 12000
+      description: Стоимость работ
+    auth_register_body:
+      required:
+        - data
+        - photo1
+        - photo2
+        - photo3
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/RegisterRequest'
+        photo1:
+          type: string
+          description: "Фотография №1: Селфи"
+          format: binary
+        photo2:
+          type: string
+          description: "Фотография №2: Первый разворот паспорта"
+          format: binary
+        photo3:
+          type: string
+          description: "Фотография №3: Второй разворот паспорта"
+          format: binary
+    user_photo_body:
+      type: object
+      properties:
+        sessionToken:
+          type: string
+          description: Токен пользователя
+          example: 10000000-0000-0000-0000-000000000000
+        photo:
+          type: string
+          description: Новая фотография
+          format: binary
+    request_signManual_body:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/SignManualRequest'
+        sign:
+          type: string
+          description: Фото подписи (png 870x525 с прозрачным фоном)
+          format: binary
+    request_uploadPhoto_body:
+      type: object
+      properties:
+        data:
+          $ref: '#/components/schemas/UploadPhotoRequest'
+        photo:
+          type: string
+          description: Фотография
+          format: binary
+    UrlResponse_result:
+      type: object
+      properties:
+        url:
+          type: string
+          description: Ссылка на запрашиваемый документ/картинку
+  securitySchemes:
+    AuthHeader:
+      type: apiKey
+      description: Общий заголовок доступа к АПИ
+      name: Authorization
+      in: header

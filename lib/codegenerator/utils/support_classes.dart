@@ -1,8 +1,6 @@
 import 'package:equatable/equatable.dart';
 
-class FileParts {}
-
-class GeneratedModels {
+class GeneratedModels extends Equatable {
   final List<ApiMethod> methods;
   final List<ApiModel> models;
 
@@ -10,18 +8,23 @@ class GeneratedModels {
     required this.methods,
     required this.models,
   });
+
+  @override
+  List<Object?> get props => [models];
 }
 
 class ApiField extends Equatable {
   final String name;
   final String type;
   final String example;
+  final String description;
   final ApiModel? model;
 
   const ApiField({
     required this.name,
     required this.type,
     required this.example,
+    required this.description,
     this.model,
   });
 
@@ -33,9 +36,11 @@ class ApiModel extends Equatable {
   final String name;
   final List<ApiField> fields;
   final ApiModel? superModel;
+  final String description;
   final List<String> usages;
 
   const ApiModel({
+    required this.description,
     required this.name,
     required this.fields,
     this.superModel,
@@ -67,24 +72,27 @@ class ApiModel extends Equatable {
       name: name ?? this.name,
       fields: fields ?? this.fields,
       superModel: superModel ?? this.superModel,
+      description: description,
       usages: newUsages,
     );
   }
 }
 
 class EmptyModel extends ApiModel {
-  EmptyModel({
+  const EmptyModel({
     super.name = '',
     super.fields = const [],
+    super.description = '',
   });
 }
 
 class VirtualModel extends ApiModel {
-  VirtualModel({
+  const VirtualModel({
     required super.name,
     super.fields = const [],
     super.superModel,
     super.usages,
+    super.description = '',
   });
 }
 
@@ -95,6 +103,7 @@ class ApiMethod extends Equatable {
   final String methodName;
   final ApiModel response;
   final ApiModel request;
+  final String summary;
 
   const ApiMethod({
     required this.tags,
@@ -103,6 +112,7 @@ class ApiMethod extends Equatable {
     required this.methodName,
     required this.request,
     required this.response,
+    required this.summary,
   });
 
   // @override
