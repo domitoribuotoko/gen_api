@@ -38,11 +38,13 @@ class ApiModel extends Equatable {
   final ApiModel? superModel;
   final String description;
   final List<String> usages;
+  final bool isArray;
 
   const ApiModel({
     required this.description,
     required this.name,
     required this.fields,
+    this.isArray = false,
     this.superModel,
     this.usages = const [],
   });
@@ -63,6 +65,7 @@ class ApiModel extends Equatable {
     ApiModel? superModel,
     List<String>? usages,
     String? newUsage,
+    bool? isArray,
   }) {
     List<String>? newUsages = usages ?? this.usages;
     if (newUsage != null && !newUsages.contains(newUsage)) {
@@ -74,6 +77,7 @@ class ApiModel extends Equatable {
       superModel: superModel ?? this.superModel,
       description: description,
       usages: newUsages,
+      isArray: isArray ?? this.isArray,
     );
   }
 }

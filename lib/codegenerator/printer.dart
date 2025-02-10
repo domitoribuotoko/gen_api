@@ -4,8 +4,8 @@ class _Printer {
   final List<ApiMethod> _methods;
   final List<ApiModel> _models;
   final String _basePath;
-  final String _pathData;
   final String _pathModels;
+  final List<String> _createdBaseModels = [];
 
   _Printer({
     required GeneratedModels generated,
@@ -13,16 +13,12 @@ class _Printer {
   })  : _methods = generated.methods,
         _models = generated.models,
         _basePath = outDir,
-        _pathData = '$outDir${c.data}',
-        _pathModels = '$outDir${c.data}${c.models}' {
+        _pathModels = '$outDir${con.data}${con.models}' {
     _generate();
+    stdout.writeln('${c('gen_yaml')} ${g('complete')}');
   }
 
-  Future<void> _generate() async {
-    if (Directory(_pathData).existsSync()) {
-      Directory(_pathData).deleteSync(recursive: true);
-    }
-
+  void _generate() {
     StringBuffer clientImports = u.clientFile();
     StringBuffer clientClasses = u.clientClass();
     for (ApiMethod method in _methods) {
@@ -30,9 +26,9 @@ class _Printer {
       clientClasses.writelnIfNotEmpty(apiMethod);
       List<ApiModel> requestModels = getModelsInside(method.request);
       List<ApiModel> responseModels = getModelsInside(method.response);
-      String requestPath = _maybeWriteManyModels(requestModels, method);
+      String requestPath = _maybeWriteManyModelsToFile(requestModels, method);
       String responsePath =
-          _maybeWriteManyModels(responseModels, method, isRequest: false);
+          _maybeWriteManyModelsToFile(responseModels, method, isRequest: false);
       u.maybeAddImport(requestPath, clientImports);
       u.maybeAddImport(responsePath, clientImports);
     }
@@ -66,7 +62,7 @@ class _Printer {
     return models;
   }
 
-  String _maybeWriteManyModels(
+  String _maybeWriteManyModelsToFile(
     List<ApiModel> models,
     ApiMethod method, {
     bool isRequest = true,
@@ -93,38 +89,33 @@ class _Printer {
     Directory(requestFilePath).createSync(recursive: true);
 
     // Создаем StringBuffer для содержимого файла
-    StringBuffer fileImports = StringBuffer();
+    StringBuffer imports = StringBuffer();
     StringBuffer fileClasses = StringBuffer();
-    fileImports.writelnIfNotEmpty(c.impJson);
+    imports.writelnIfNotEmpty(con.impJson);
     for (ApiModel model in models) {
       if (model.isBase) {
         String basePath = _generateBaseModel(model);
-        u.maybeAddImport(basePath, fileImports);
+        u.maybeAddImport(basePath, imports);
       } else {
         fileClasses.writelnIfNotEmpty(u.generateModelDefinition(model));
       }
     }
-    fileImports.writelnIfNotEmpty(u.part(part));
-    fileImports.writelnIfNotEmpty(fileClasses);
-    String requestPath = '$requestFilePath/$fileName';
-    File(requestPath).writeAsStringSync(fileImports.toString());
-    return requestPath;
+    imports.writelnIfNotEmpty(u.part(part));
+    imports.writelnIfNotEmpty(fileClasses);
+    String path = '$requestFilePath/$fileName';
+    _maybeWriteFile(path, imports);
+    return path;
   }
 
   String _generateBaseModel(ApiModel model) {
     String name = model.name.snakeCase;
-    String modelPath = '$_pathModels${c.base}/$name/$name.dart';
-    if (!File(modelPath).existsSync()) {
-      _writeSingleModelToFile(model, modelPath);
-    }
+    String modelPath = '$_pathModels${con.base}/$name/$name.dart';
+    _writeSingleModelToFile(model, modelPath);
     return modelPath;
   }
 
-  void _writeSingleModelToFile(ApiModel model, String path) async {
-    Directory directory = Directory(path).parent;
-    if (!directory.existsSync()) {
-      directory.createSync(recursive: true);
-    }
+  void _writeSingleModelToFile(ApiModel model, String path) {
+    Directory(path).parent.createSync(recursive: true);
     StringBuffer imports = StringBuffer();
     for (ApiField field in model.fields) {
       ApiModel? modelInside = field.model;
@@ -134,13 +125,79 @@ class _Printer {
       }
     }
     StringBuffer baseModelDefinition = StringBuffer();
-    baseModelDefinition.writelnIfNotEmpty(c.impJson);
+    baseModelDefinition.writelnIfNotEmpty(con.impJson);
     String partOf = path.split('/').last.split('.').first;
     baseModelDefinition.writelnIfNotEmpty(u.part(partOf));
     baseModelDefinition.writelnIfNotEmpty(u.generateModelDefinition(model));
     imports.writelnIfNotEmpty(baseModelDefinition);
-    if (!File(path).existsSync()) {
-      File(path).writeAsStringSync(imports.toString());
+    _maybeWriteFile(path, imports, isBase: true);
+  }
+
+  void _maybeWriteFile(
+    String path,
+    StringBuffer buffer, {
+    bool isBase = false,
+  }) {
+    File newFile = File(path);
+    if (newFile.existsSync()) {
+      if (_createdBaseModels.contains(path)) {
+        return;
+      }
+      if (isOverwriteFiles) {
+        _writeFile(path, buffer);
+        return;
+      }
+      stdout.write(
+          '${y('file')} ${c(path)} ${y('already exist')}, overwrite? y/n/a:');
+      String? line = stdin.readLineSync();
+      bool isOverWrite = _parseInput(line);
+      if (isOverWrite) {
+        _writeFile(path, buffer);
+      } else {
+        stdout.writeln('file was skipped');
+      }
+    } else {
+      _createdBaseModels.add(path);
+      _writeFile(path, buffer, isOverWrite: false);
     }
   }
+
+  void _writeFile(String path, StringBuffer buffer, {bool isOverWrite = true}) {
+    String what = isOverWrite ? r('was overwrite') : g('was create');
+    stdout.writeln('${y('file')} ${c(path)} $what');
+    File(path).writeAsStringSync(buffer.toString());
+  }
+
+  bool _parseInput(String? input) {
+    switch (input) {
+      case 'y':
+        return true;
+      case 'n':
+        return false;
+      case 'a':
+        isOverwriteFiles = true;
+        return true;
+      default:
+        stdout.write('${r('input not recognized')}: "$input"');
+        stdout.write('overwrite? y/n/a:');
+        String? line = stdin.readLineSync();
+        return _parseInput(line);
+    }
+  }
+}
+
+String r(String value) {
+  return Colorize(value).red().toString();
+}
+
+String g(String value) {
+  return Colorize(value).green().toString();
+}
+
+String y(String value) {
+  return Colorize(value).yellow().toString();
+}
+
+String c(String value) {
+  return Colorize(value).cyan().toString();
 }

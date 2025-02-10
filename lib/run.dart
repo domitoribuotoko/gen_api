@@ -6,6 +6,7 @@ import 'package:yaml/yaml.dart';
 import 'package:args/args.dart';
 
 String appName = u.projDir;
+bool isOverwriteFiles = false;
 
 class Run {
   static Future<void> run(List<String> args) async {
@@ -14,7 +15,8 @@ class Run {
     final parser = ArgParser()
       ..addOption('input', abbr: 'i', defaultsTo: 'openapi.yaml')
       ..addOption('output', abbr: 'o', defaultsTo: 'lib')
-      ..addFlag('run_build', abbr: 'b', defaultsTo: false);
+      ..addFlag('run_build', abbr: 'b', defaultsTo: false)
+      ..addFlag('is_overWrite', abbr: 'w', defaultsTo: false);
 
     ArgResults results = parser.parse(args);
 
@@ -25,6 +27,7 @@ class Run {
     String inputPath = results['input'] as String;
     String outputPath = results['output'] as String? ?? 'lib/generated';
     bool isBuild = results['run_build'] ?? false;
+    isOverwriteFiles = results['is_overWrite'] ?? false;
     final file = File(inputPath);
     if (!file.existsSync()) {
       throw Exception('Input file not found: $inputPath');
@@ -49,7 +52,9 @@ void _maybeRunBuilder({bool inputIsBuild = false}) {
   bool? paramIsBuild = genYamlConfig?['isRunBuilder'] as bool?;
   bool isParamSet = paramIsBuild != null;
   bool isBuild = (paramIsBuild == true) || (inputIsBuild && !isParamSet);
-  print('Is need build .g.dart files: $isBuild\ninputIsBuild: $inputIsBuild\nisParamSet: $isParamSet\nparamIsBuild: $paramIsBuild');
+  String booValue = isBuild ? g('true') : y('false');
+  stdout.writeln(
+      '${g('is generate .g.dart files')}: $booValue\ninputIsBuild: $inputIsBuild\nisParamSet: $isParamSet\nparamIsBuild: $paramIsBuild');
   if (isBuild) {
     Process.run('dart', ['run', 'build_runner', 'build', '-d']);
   }

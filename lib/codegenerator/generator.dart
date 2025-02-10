@@ -1,13 +1,14 @@
 part of 'api_gen.dart';
 
 class _ModelsGenerator {
-  final YamlMap _schemas;
   final YamlMap _paths;
+  final YamlMap _schemas;
 
   _ModelsGenerator({
     required ApiGen api,
   })  : _paths = api._paths,
-        _schemas = api._schemas;
+        _schemas =
+            YamlMap.wrap(Map.from(api._schemas)..addAll(api._responses ?? {}));
 
   final List<ApiModel> _generateModelsList = [];
   final List<ApiMethod> _generateMethodList = [];
@@ -34,14 +35,13 @@ class _ModelsGenerator {
     YamlMap apiMethod = pathMap.value;
     String apiType = apiMethod.value.keys.first;
     YamlMap content = apiMethod.value[apiType];
-    YamlList? tags = content[c.ts];
-    String? summary = content[c.sum];
+    YamlList? tags = content[con.ts];
+    String? summary = content[con.sum];
     List<String> tagList =
         tags != null ? tags.map((tag) => tag.toString()).toList() : [];
-    // print('METHOD HAS TAG $tagList');
     String methodName = u.apiMethodNameOfPath(apiPath);
-    YamlMap? requestBody = content[c.reqB];
-    YamlMap? response = content[c.res];
+    YamlMap? requestBody = content[con.reqB];
+    YamlMap? response = content[con.res];
 
     _setCurrentMethod(
       tags: tagList,
@@ -84,9 +84,9 @@ class _ModelsGenerator {
 
   ApiModel _generateApiResponse(YamlMap? response, String apiPath) {
     // //print('generate response class $response');
-    YamlMap? body = response?[c.code200] ?? response?[c.cs200];
+    YamlMap? body = response?[con.code200] ?? response?[con.cs200];
     if (body == null) {
-      throw Exception('generate response null body\n$response');
+      e.nullBody(apiPath);
     }
     return _generateModelFromBody(body, apiPath, isResponse: true);
   }
@@ -100,26 +100,31 @@ class _ModelsGenerator {
       return EmptyModel();
     }
     //print('generate class $body');
-    YamlMap? contentJson = body[c.cont][c.json];
-    YamlMap? contentMultipart = body[c.cont][c.multipart];
-    YamlMap? content = contentJson ?? contentMultipart;
+    YamlMap? content = u.contentFromSchema(body);
 
     if (content != null) {
-      YamlMap schema = content[c.sch];
+      YamlMap schema = content[con.sch];
       SchemasType type = u.getFieldType(schema, _schemas);
       String modelName = u.classNameOfPath(path, isResponse: isResponse);
       switch (type) {
         case SchemasType.model:
           return _getModelFromDeclaration(schema, propModelName: modelName);
         case SchemasType.array:
-          //todo array generating
-          return _getModelFromDeclaration(schema, propModelName: modelName);
+          return _generateModelFromArray(schema);
         case SchemasType.field:
-          throw Exception('METHOD CLASS IS FIELD OR REF ON REF');
+          throw e.modelsIsFiled(content);
       }
     } else {
-      throw Exception('no contend body for class\nbody: $body');
+      throw e.nullBody(path);
     }
+  }
+
+  ApiModel _generateModelFromArray(YamlMap schema) {
+    schema = schema[con.items];
+    ApiModel model = _getModelFromDeclaration(schema);
+    model = model.copyWith(isArray: true);
+    _generateModelsList.replaceSingle(model);
+    return model;
   }
 
   ApiModel _generateModelOfProp(YamlMap schema, String modelName) {
@@ -137,15 +142,14 @@ class _ModelsGenerator {
       case SchemeDeclaration.here:
         return _generateModelOfProp(schema, propModelName);
       case SchemeDeclaration.ref:
-        return _generateModelOfRef(schema[c.ref]);
+        return _generateModelOfRef(schema[con.ref]);
       case SchemeDeclaration.allOf:
         return _generateModelOfAll(schema);
       case SchemeDeclaration.oneOf:
         return _generateModelOfOne(schema, propModelName: propModelName);
       case SchemeDeclaration.unknown:
-        //print('$dec\n$schema');
-        throw Exception(
-            'UNKNOWN MODEL DECLARATION:\n$schema\npropName:$propModelName');
+        MapEntry map = MapEntry(propModelName, schema);
+        throw e.unknownModel(map);
     }
   }
 
@@ -156,13 +160,13 @@ class _ModelsGenerator {
       case SchemeDeclaration.here:
         return _generateFieldBase(fieldMap);
       case SchemeDeclaration.ref:
-        return _generateFieldOfRef(value[c.ref], fieldName: fieldMap.key);
+        return _generateFieldOfRef(value[con.ref], fieldName: fieldMap.key);
       case SchemeDeclaration.allOf:
         return _generateFieldOfAll(fieldMap);
       case SchemeDeclaration.oneOf:
         return _generateFieldOfOne(fieldMap);
       case SchemeDeclaration.unknown:
-        throw Exception('UNKNOWN FIELD DECLARATION:\n$value');
+        throw e.unknownField(fieldMap);
     }
   }
 
@@ -176,45 +180,41 @@ class _ModelsGenerator {
     MapEntry? modelMap = _schemas.entries[ref];
     MapEntry? supModel = _schemas.entries[supRef];
     if (modelMap != null) {
-      // print('generate model of ref $ref');
-      ApiModel model = _generateModel(
-        modelMap,
-        supModelMap: supModel,
-      );
+      ApiModel model = _generateModel(modelMap, supModelMap: supModel);
       return model;
     } else {
-      throw Exception('model $ref not found in schemas');
+      throw e.noSchemaRef(reference);
     }
   }
 
   ApiModel _generateModelOfAll(YamlMap schema) {
-    YamlList? list = schema[c.all];
+    YamlList? list = schema[con.all];
     if (list == null) {
-      throw Exception('EXCEPTION list allOf is $list');
+      throw e.nullList(schema);
     }
     if (list.length == 1) {
-      schema[c.ref];
-      String ref = list.first[c.ref];
+      schema[con.ref];
+      String ref = list.first[con.ref];
       return _generateModelOfRef(ref);
     } else {
-      throw Exception('cases allOf not covered length:\n---${list.length}---');
+      throw e.allOfLength(list.length);
     }
   }
 
   ApiModel _generateModelOfOne(YamlMap schema, {propModelName = ''}) {
-    YamlList? list = schema[c.one];
+    YamlList? list = schema[con.one];
     if (list == null) {
-      throw Exception('EXCEPTION list oneOf is $list');
+      throw e.nullList(schema);
     }
     if (list.length == 1) {
-      schema[c.ref];
-      String ref = list.first[c.ref];
+      schema[con.ref];
+      String ref = list.first[con.ref];
       return _generateModelOfRef(ref);
-    } else if (list.length > 1) {
+    } else {
       List<ApiModel> childrenModels = [];
-      YamlList list = schema[c.one];
+      YamlList list = schema[con.one];
       for (YamlMap schema in list) {
-        ApiModel forMerge = _generateModelOfRef(schema[c.ref]);
+        ApiModel forMerge = _generateModelOfRef(schema[con.ref]);
         childrenModels.add(forMerge);
       }
       VirtualModel parentVirtualModel = u.mergeModels(
@@ -226,25 +226,27 @@ class _ModelsGenerator {
       childrenModels.setVirtualModel(parentVirtualModel);
       _generateModelsList.replaceModels(childrenModels);
       return parentVirtualModel;
-    } else {
-      throw Exception(
-          'EXCEPTION cases oneOf not covered len:\n---${list.length}---');
     }
   }
+
+  
 
   ApiModel _generateModel(
     MapEntry modelMap, {
     MapEntry? supModelMap,
   }) {
-    YamlMap properties = modelMap.value[c.prop] as YamlMap;
-    YamlList? additionalProps = modelMap.value[c.all];
-    List<ApiField> fields = _generateFields(properties);
+    YamlMap? props = u.propFromSchema(modelMap.value);
+    if (props == null) {
+      throw e.nullProp(modelMap);
+    }
+    YamlList? additionalProps = modelMap.value[con.all];
+    List<ApiField> fields = _generateFields(props);
     if (additionalProps != null) {
       for (YamlMap additionalMap in additionalProps) {
-        String reference = additionalMap[c.ref];
+        String reference = additionalMap[con.ref];
         MapEntry? map = _getMapFromRef(reference);
         if (map == null) {
-          throw Exception('no map for reference $reference');
+          throw e.noSchemaRef(reference);
         }
         fields.addAll(_generateFields(map.value));
       }
@@ -256,7 +258,7 @@ class _ModelsGenerator {
     ApiModel model = ApiModel(
       name: modelMap.key,
       fields: fields,
-      description: modelMap.value[c.desc] ?? '',
+      description: modelMap.value[con.desc] ?? '',
       superModel: superModel,
       usages: [_currentMethodProcess!.apiPath],
     );
@@ -302,14 +304,14 @@ class _ModelsGenerator {
     } else {
       arrayScheme = fieldMap.value;
     }
-    YamlMap itemScheme = arrayScheme[c.items];
+    YamlMap itemScheme = arrayScheme[con.items];
     SchemasType itemType = u.getFieldType(itemScheme, _schemas);
     ApiModel? model;
     String? desc;
     switch (itemType) {
       case SchemasType.field:
         MapEntry entry = MapEntry('UNKNOWN', itemScheme);
-        desc = itemScheme[c.desc];
+        desc = itemScheme[con.desc];
         ApiField fieldModel = _generateFieldFromDeclaration(entry);
         type = 'List<${fieldModel.type}>';
       case SchemasType.model:
@@ -318,9 +320,9 @@ class _ModelsGenerator {
         String className = genArrayModelName(fieldMap.key, arrayRef, itemRef);
         model = _getModelFromDeclaration(itemScheme, propModelName: className);
         type = 'List<${model.name}>';
-        desc = itemScheme[c.desc];
+        desc = itemScheme[con.desc];
       case SchemasType.array:
-        throw Exception('ITEM OF ARRAY IS ARRAY');
+        throw e.arrayInArray(fieldMap);
     }
     ApiField field = ApiField(
       name: fieldMap.key,
@@ -350,47 +352,45 @@ class _ModelsGenerator {
     return className;
   }
 
-  ApiField _generateFieldOfOne(fieldMap) {
+  ApiField _generateFieldOfOne(MapEntry fieldMap) {
     ///по идее такого кейса быть не может, так как это по сути неправильное описание api
-    throw Exception('TRY GENERATE FIELD FROM ONE OF');
+    throw e.oneOfField(fieldMap);
   }
 
   ApiField _generateFieldBase(MapEntry fieldMap) {
     YamlMap value = fieldMap.value as YamlMap;
-    String? type = value[c.type];
-    String? format = value[c.format];
-    String? description = value[c.desc];
+    String? type = value[con.type];
+    String? format = value[con.format];
+    String? description = value[con.desc];
     String fieldType = u.generateType(type, format);
     return ApiField(
       name: fieldMap.key,
       description: description ?? '',
       type: fieldType,
-      example: value[c.ex].toString(),
+      example: value[con.ex].toString(),
     );
   }
 
   ApiField _generateFieldOfAll(MapEntry fieldMap) {
-    YamlList list = fieldMap.value[c.all];
+    YamlList list = fieldMap.value[con.all];
     if (list.length == 1) {
-      fieldMap.value[c.ref];
-      String ref = list.first[c.ref];
+      fieldMap.value[con.ref];
+      String ref = list.first[con.ref];
       return _generateFieldOfRef(ref, fieldName: fieldMap.key);
     } else {
-      throw Exception(
-          'EXCEPTION cases allOf not covered length:\n---${list.length}---');
+      throw e.allOfLength(list.length);
     }
   }
 
   ApiField _generateFieldOfRef(String reference, {required String fieldName}) {
     String ref = u.formatReference(reference);
     MapEntry? buf = _schemas.entries[ref];
-    // print('generate field of ref \nname:$fieldName\nref:$ref\nschema:$buf');
     if (buf != null) {
       MapEntry map = MapEntry(fieldName, buf.value);
       ApiField field = _generateFieldBase(map);
       return field;
     } else {
-      throw Exception('field $ref not found in schemas');
+      throw e.noSchemaRef(reference);
     }
   }
 
@@ -401,7 +401,7 @@ class _ModelsGenerator {
     ApiModel model =
         _getModelFromDeclaration(mapModel.value, propModelName: mapModel.key);
     // print('GENERATE MODEL FROM PROP $type\n$mapModel ');
-    String? desc = fieldMap.value[c.desc];
+    String? desc = fieldMap.value[con.desc];
     return ApiField(
       name: fieldMap.key,
       type: model.name,

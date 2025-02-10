@@ -1,4 +1,4 @@
-typedef c = Consts;
+typedef con = Consts;
 
 class Consts {
   static const String data = '/data';

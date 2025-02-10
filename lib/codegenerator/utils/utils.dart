@@ -1,6 +1,7 @@
 import 'dart:io';
 import 'package:gen_yaml/codegenerator/utils/consts.dart';
 import 'package:gen_yaml/codegenerator/utils/enums.dart';
+import 'package:gen_yaml/codegenerator/utils/error.dart';
 import 'package:gen_yaml/codegenerator/utils/support_classes.dart';
 import 'package:gen_yaml/run.dart';
 import 'package:pubspec_parse/pubspec_parse.dart';
@@ -10,6 +11,19 @@ import 'package:yaml/yaml.dart';
 typedef u = Utility;
 
 class Utility {
+  static YamlMap? contentFromSchema(YamlMap schema) {
+    YamlMap? contentJson = schema[con.cont]?[con.json];
+    YamlMap? contentMultipart = schema[con.cont]?[con.multipart];
+    YamlMap? content = contentJson ?? contentMultipart;
+    return content;
+  }
+
+  static YamlMap? propFromSchema(YamlMap schema) {
+    YamlMap? content = contentFromSchema(schema)?['schema'];
+    YamlMap? props = schema.value[con.prop] ?? content?[con.prop];
+    return props;
+  }
+
   static String packageName() {
     String path = 'pubspec.yaml';
     final file = File(path);
@@ -30,32 +44,42 @@ class Utility {
     }
   }
 
+  static void error() {
+    throw Exception('asdf');
+  }
+
   static SchemasType _getSchemaType(YamlMap fieldValue, YamlMap schemas) {
-    // SchemeDeclaration dec = getSchemaDeclaration(fieldValue);
-    // if (dec.isAnyReference) {
-    //   YamlMap schema = getSchemaFromRef(fieldValue, schemas);
-    //   return _getSchemaType(schema, schemas);
-    // }
-    if (fieldValue[c.type] == c.arr) {
+    SchemeDeclaration dec = getSchemaDeclaration(fieldValue);
+    YamlMap? content = contentFromSchema(fieldValue);
+    if (dec.isAnyReference) {
+      e.refOnRef(fieldValue.toString());
+    }
+    if (fieldValue[con.type] == con.arr) {
       return SchemasType.array;
     }
-    if (fieldValue[c.prop] != null || fieldValue[c.req] != null) {
+    if (fieldValue[con.prop] != null ||
+        fieldValue[con.req] != null ||
+        content != null) {
       return SchemasType.model;
     }
     return SchemasType.field;
   }
 
   static SchemeDeclaration getSchemaDeclaration(YamlMap yamlMap) {
-    if (yamlMap[c.ref] != null) {
+    YamlMap? content = u.contentFromSchema(yamlMap);
+    if (content != null) {
+      return SchemeDeclaration.here;
+    }
+    if (yamlMap[con.ref] != null) {
       return SchemeDeclaration.ref;
     }
-    if (yamlMap[c.all] != null) {
+    if (yamlMap[con.all] != null) {
       return SchemeDeclaration.allOf;
     }
-    if (yamlMap[c.one] != null) {
+    if (yamlMap[con.one] != null) {
       return SchemeDeclaration.oneOf;
     }
-    if (yamlMap[c.prop] != null || yamlMap[c.type] != null) {
+    if (yamlMap[con.prop] != null || yamlMap[con.type] != null) {
       return SchemeDeclaration.here;
     }
 
@@ -71,8 +95,8 @@ class Utility {
   }
 
   static String? getRefFromMap(YamlMap fieldValue) {
-    YamlList? list = fieldValue[c.one] ?? fieldValue[c.all];
-    String? flatRef = fieldValue[c.ref] ?? list?.first[c.ref];
+    YamlList? list = fieldValue[con.one] ?? fieldValue[con.all];
+    String? flatRef = fieldValue[con.ref] ?? list?.first[con.ref];
     return flatRef;
   }
 
@@ -111,7 +135,7 @@ class Utility {
 
   static String generateType(String? type, String? format) {
     if (type == null && format == null) {
-      throw Exception('PARSE FIELD TYPE ERROR');
+      throw Exception('PARSE FIELD TYPE ERROR\ntype:$type\nformat:$format');
     }
     switch (type) {
       case 'string':
@@ -278,6 +302,12 @@ class Utility {
     // Определяем возвращаемый тип и тип запроса
     String returnType = method.response.name;
     String requestType = method.request.name;
+    if (method.response.isArray) {
+      returnType = 'List<$returnType>';
+    }
+    if (method.request.isArray) {
+      requestType = 'List<$requestType>';
+    }
 
     // Записываем аннотацию HTTP метода
     buffer.writelnIfNotEmpty('  @$httpMethod(\'$apiPath\')');
@@ -372,7 +402,7 @@ class Utility {
 }
 
 extension FindMapExtension on Iterable<MapEntry> {
-  dynamic operator [](Object? key) => where((e) => e.key == key).firstOrNull;
+  dynamic operator [](Object? key) => where((el) => el.key == key).firstOrNull;
 }
 
 // extension YamlListExtension on YamlList {
@@ -396,17 +426,17 @@ extension StringBufferExt on StringBuffer {
 }
 
 extension ApiModelListExtensions on List<ApiModel> {
-  ApiModel? itemByName(String name) => where((e) => e.name == name).firstOrNull;
+  ApiModel? itemByName(String name) => where((el) => el.name == name).firstOrNull;
 
   List<ApiModel> childrenFromName(String parentName) {
-    return where((e) => e.superModel?.name == parentName).toList();
+    return where((el) => el.superModel?.name == parentName).toList();
   }
 
   // bool exist(String name) => where((e) => e.name == name).firstOrNull != null;
 
   // bool get hasSingleUsageModel => any((e) => e.isBase);
 
-  bool get hasEmpty => any((e) => e.isEmpty);
+  bool get hasEmpty => any((el) => el.isEmpty);
 
   void get removeDuplicates {
     Set<String> seenNames = <String>{};
